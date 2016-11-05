@@ -23,15 +23,16 @@ __global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
     float delta, p, b = 1;
     
     // first city to swap
-    int salesman_route_k = salesman_route[k[tid]];
-    int salesman_route_kplus_mod  = salesman_route[k[tid] + 1 % N];
-    int salesman_route_kminus_mod = salesman_route[(k[tid] - 1 + N) % N];
-    
-    // second city to swap
     int salesman_route_i = salesman_route[i[tid]];
     int salesman_route_iminus_mod = salesman_route[(i[tid] - 1 + N) % N];
     int salesman_route_iplus_mod  = salesman_route[(i[tid] + 1) % N];
     
+    // second city to swap
+    int salesman_route_k = salesman_route[k[tid]];
+    int salesman_route_kplus_mod  = salesman_route[k[tid] + 1 % N];
+    int salesman_route_kminus_mod = salesman_route[(k[tid] - 1 + N) % N];
+    
+    // we should return this so we know the minimum route -S.
     delta = dist[salesman_route_iminus_mod * N + salesman_route_k] +
             dist[salesman_route_k * N + salesman_route_iplus_mod]  +
             dist[salesman_route_kminus_mod * N + salesman_route_i] +
@@ -82,10 +83,14 @@ __global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
          }
      }
      
-     float dist_g[N * N], T = 1000, T_g[1], r_h[t_num], r_g[t_num];
+     float dist_g[N * N], T = 5, T_g[1], r_h[t_num], r_g[t_num];
      
      /*
-     Defining device variables
+     Defining device variables:
+     i_h/g: Host/Device memory for city one
+     k_h/g: Host/Device memory for city two
+     flag_h/g: Host/Device memory for flag of accepted step
+     salesman_route_g: Device memory for the salesmans route
      r_g is the random number for deciding acceptance
      flag is the acceptance vector
      */
@@ -100,7 +105,8 @@ __global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
      cudaMalloc((void**)&salesman_route_g, N * sizeof(int));
      cudaMalloc((void**)&flag_g, t_num * sizeof(int));
      
-     // Beta is the temorary decay rate
+     // Beta is the temporary decay rate
+     float beta = 0.95;
      float a = 1; 
      float f;
      
@@ -127,9 +133,33 @@ __global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
           
           tsp<<< 1, t_num, 0>>>(i_g, k_g, dist_g, salesman_route_g, T_g, r_g, flag_g);
           
-          cudaMemcpy(flag_h, flag_h, t_num * sizeof(int), cudaMemcpyDeviceToHost);
-          T = 0;
-     }
+          cudaMemcpy(flag_h, flag_g, t_num * sizeof(int), cudaMemcpyDeviceToHost);
+          cudaMemcpy(salesman_route, salesman_route_g, N* sizeof(int), cudaMemcpyHostToDevice);
+          
+          /* 
+          Here we check for a success
+            The first proposal trip accepted becomes the new starting trip 
+          
+          for (i = 0; i < t_num; i++){
+              if (flag_h[i] == 0){
+                  continue;
+              } else {
+                  // Make all the new starting trips equal to the accepted winner
+                  for (j = 0; j < N; j++){
+                      salesman_route[j] = salesman_route[i];
+                  }
+                  //decrease temp
+                  T -= T*beta;
+                  printf("Current Temperature is %.6f", T)
+                  printf("Best found trip so far\n")
+                  for (j = 0; j < N; j++){
+                     printf("%d", salesman_route[j])
+                  }
+              }
+          }
+          */
+             
+     // Do we free memory in each while loop?    
      cudaFree(i_g);
      cudaFree(k_g);
      cudaFree(dist_g);
@@ -138,11 +168,15 @@ __global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
      cudaFree(r_g);
      cudaFree(flag_g);
      
+     /*
+     This is to check the flags
      for(m = 0; m < t_num; m++){
          printf("%d\n", flag_h[m]);
      }
      getchar();
      getchar();
+     */
+     }
      return 0;
 }
              
