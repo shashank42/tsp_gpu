@@ -7,23 +7,39 @@
 #define t_num 256
 #define N 100
 
-// BEGIN KERNEL
-__global__ static void try(int* i, int* k, float *dist, int *odr, float *T, float *r, int *flag){
+/* BEGIN KERNEL
+Input:
+- i: A vector of cities to swap for the first swap choice
+- k: A vector of cities to swap for the second swap choice
+- dist: The distance matrix of each city
+- salesman_route: The route the salesman will travel
+- T: The current temperature
+- r: The random number to compare against for S.A.
+*/
+__global__ static void tsp(int* i, int* k, float *dist, int *salesman_route,
+                           float *T, float *r, int *flag){
     
     const int tid = threadIdx.x;
     float delta, p, b = 1;
     
-    int odr_k = odr[k[tid]];
-    int odr_i = odr[i[tid]];
-    int odr_kplus_mod  = odr[k[tid] + 1 % N];
-    int odr_kminus_mod = odr[(k[tid] - 1 + N) % N];
-    int odr_iminus_mod = odr[(i[tid] - 1 + N) % N];
-    int odr_iplus_mod  = odr[(i[tid] + 1) % N];
+    // first city to swap
+    int salesman_route_k = salesman_route[k[tid]];
+    int salesman_route_kplus_mod  = salesman_route[k[tid] + 1 % N];
+    int salesman_route_kminus_mod = salesman_route[(k[tid] - 1 + N) % N];
     
-    delta = dist[odr_iminus_mod * N + odr_k] + dist[odr_k * N + odr_iplus_mod] +
-            dist[odr_kminus_mod * N + odr_i] + dist[odr_i * N + odr_kplus_mod] -
-            dist[odr_iminus_mod * N + odr_i] - dist[odr_i * N + odr_iplus_mod] -
-            dist[odr_kminus_mod * N + odr_k] - dist[odr_k * N + odr_kplus_mod];
+    // second city to swap
+    int salesman_route_i = salesman_route[i[tid]];
+    int salesman_route_iminus_mod = salesman_route[(i[tid] - 1 + N) % N];
+    int salesman_route_iplus_mod  = salesman_route[(i[tid] + 1) % N];
+    
+    delta = dist[salesman_route_iminus_mod * N + salesman_route_k] +
+            dist[salesman_route_k * N + salesman_route_iplus_mod]  +
+            dist[salesman_route_kminus_mod * N + salesman_route_i] +
+            dist[salesman_route_i * N + salesman_route_kplus_mod]  -
+            dist[salesman_route_iminus_mod * N + salesman_route_i] - 
+            dist[salesman_route_i * N + salesman_route_iplus_mod] -
+            dist[salesman_route_kminus_mod * N + salesman_route_k] - 
+            dist[salesman_route_k * N + salesman_route_kplus_mod];
     p = exp(-delta * b / T[0]);
     if (p > r[tid])
       flag[tid] = 1;
@@ -38,20 +54,20 @@ __global__ static void try(int* i, int* k, float *dist, int *odr, float *T, floa
      int i, j, m;
      
      // city's x y coordinates
-     struct location {
+     struct coordinates {
          int x;
          int y;
      };
      
-     struct location lct[N];
+     struct coordinates location[N];
      
      // the order of the salesman problem
-     int odr[N];
+     int salesman_route[N];
      
-     // initialize the location and sequence
+     // initialize the coordinates and sequence
      for(i = 0; i < N; i++){
-         lct[i].x = rand() % 1000;
-         lct[i].y = rand() % 1000;
+         location[i].x = rand() % 1000;
+         location[i].y = rand() % 1000;
      }
      
      // distance
@@ -60,9 +76,9 @@ __global__ static void try(int* i, int* k, float *dist, int *odr, float *T, floa
      for(i = 0; i < N; i++){
          for (j = 0; j < N; j++){
              // Calculate the euclidian distance between each city
-             // use pos() here instead?
-             dist[i * N + j] = (lct[i].x - lct[j].x) * (lct[i].x - lct[j].x) +
-                               (lct[j].y - lct[j].y) * (lct[i].y - lct[j].y);
+             // use pow() here instead?
+             dist[i * N + j] = (location[i].x - location[j].x) * (location[i].x - location[j].x) +
+                               (location[j].y - location[j].y) * (location[i].y - location[j].y);
          }
      }
      
@@ -74,14 +90,14 @@ __global__ static void try(int* i, int* k, float *dist, int *odr, float *T, floa
      flag is the acceptance vector
      */
      int i_h[t_num], i_g[t_num],    k_h[t_num], k_g[t_num],
-       odr_g[N],  flag_h[t_num], flag_g[t_num];
+       salesman_route_g[N],  flag_h[t_num], flag_g[t_num];
      
      cudaMalloc((void**)&dist_g, N * N * sizeof(float));
      cudaMalloc((void**)&T_g, sizeof(float));
      cudaMalloc((void**)&r_g, t_num * sizeof(float));
      cudaMalloc((void**)&i_g, t_num * sizeof(int));
      cudaMalloc((void**)&k_g, t_num * sizeof(int));
-     cudaMalloc((void**)&odr_g, N * sizeof(int));
+     cudaMalloc((void**)&salesman_route_g, N * sizeof(int));
      cudaMalloc((void**)&flag_g, t_num * sizeof(int));
      
      // Beta is the temorary decay rate
@@ -104,12 +120,12 @@ __global__ static void try(int* i, int* k, float *dist, int *odr, float *T, floa
           cudaMemcpy(k_g, k_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
           // What is order of operation for N*N*?
           cudaMemcpy(dist_g, dist, (N*N)* sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(odr_g, odr, N* sizeof(int), cudaMemcpyHostToDevice);
+          cudaMemcpy(salesman_route_g, salesman_route, N* sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(r_g, r_h, t_num* sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(flag_g, flag_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
           
-          try<<< 1, t_num, 0>>>(i_g, k_g, dist_g, odr_g, T_g, r_g, flag_g);
+          tsp<<< 1, t_num, 0>>>(i_g, k_g, dist_g, salesman_route_g, T_g, r_g, flag_g);
           
           cudaMemcpy(flag_h, flag_h, t_num * sizeof(int), cudaMemcpyDeviceToHost);
           T = 0;
@@ -117,7 +133,7 @@ __global__ static void try(int* i, int* k, float *dist, int *odr, float *T, floa
      cudaFree(i_g);
      cudaFree(k_g);
      cudaFree(dist_g);
-     cudaFree(odr_g);
+     cudaFree(salesman_route_g);
      cudaFree(&T_g);
      cudaFree(r_g);
      cudaFree(flag_g);
