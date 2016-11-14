@@ -185,15 +185,16 @@ Input:
      new_loss_h/g: [integer(t_num)]
        - The host/device memory for the proposal loss function
      */
-     int city_swap_one_h[t_num], *city_swap_one_g[t_num],
-         city_swap_two_h[t_num], *city_swap_two_g[t_num],
-         *salesman_route_g[N],
-         flag_h[t_num], *flag_g[t_num];
+     int city_swap_one_h[t_num], *city_swap_one_g,
+         city_swap_two_h[t_num], *city_swap_two_g,
+         *salesman_route_g,
+         flag_h[t_num], *flag_g;
          
-     float *original_loss_g[1];
-     float new_loss_h[t_num], *new_loss_g[t_num];   
+     float original_loss_g[1];
+     float new_loss_h[t_num], *new_loss_g;   
      
-     cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(int));
+     cudaError_t err = cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(int));
+     printf("Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
      cudaMalloc((void**)&city_swap_two_g, t_num * sizeof(int));
      cudaMalloc((void**)&dist_g, N * N * sizeof(float));
      cudaMalloc((void**)&salesman_route_g, N * sizeof(int));
@@ -203,7 +204,7 @@ Input:
      cudaMalloc((void**)&r_g, t_num * sizeof(float));
      cudaMalloc((void**)&flag_g, t_num * sizeof(int));
      // Beta is the temporary decay rate
-     float beta = 0.01;
+     float beta = 0.55;
      float a = 1; 
      float f;
      
@@ -224,22 +225,25 @@ Input:
              flag_h[m] = 0;
              //new_loss_h[m] = 0;
           }
-          cudaMemcpy(city_swap_one_g, &city_swap_one_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
-          cudaMemcpy(city_swap_two_g, &city_swap_two_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
-          cudaMemcpy(dist_g, &dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(salesman_route_g, &salesman_route, N * sizeof(int), cudaMemcpyHostToDevice);
+          err = cudaMemcpy(city_swap_one_g, &city_swap_one_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
+          printf("Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
+          cudaMemcpy(city_swap_two_g, city_swap_two_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
+          cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(r_g, &r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(flag_g, &flag_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
+          cudaMemcpy(r_g, r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(flag_g, flag_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
           //cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
           
  
           // Number of thread blocks in grid
-          int gridSize = (int)ceil((float)N/t_num);
+          //int gridSize = (int)ceil((float)N/t_num);
+          dim3 blocksPerGrid(1,1,1);
+          dim3 threadsPerBlock(1,t_num,1);
     
           //tsp<<< 1, t_num, 0>>>(city_swap_one_g, city_swap_two_g, dist_g, salesman_route_g, T_g, r_g, flag_g);
-          tspLoss<<<1, t_num, 0>>>(city_swap_one_g, city_swap_two_g, dist_g, salesman_route_g,
+          tspLoss<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g, dist_g, salesman_route_g,
                                    original_loss_g, new_loss_g, T_g, r_g, flag_g);
                     
           cudaMemcpy(flag_h, flag_g, t_num * sizeof(int), cudaMemcpyDeviceToHost);
