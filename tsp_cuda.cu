@@ -164,7 +164,7 @@ Input:
          original_loss += dist[salesman_route[i] * N + salesman_route[i+1]];
      }
      
-     float dist_g[N * N], T = 5, T_g[1], r_h[t_num], r_g[t_num];
+     float *dist_g, T = 5, *T_g, r_h[t_num], *r_g;
      
      /*
      Defining device variables:
@@ -190,7 +190,7 @@ Input:
          *salesman_route_g,
          flag_h[t_num], *flag_g;
          
-     float original_loss_g[1];
+     float *original_loss_g;
      float new_loss_h[t_num], *new_loss_g;   
      
      cudaError_t err = cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(int));
@@ -223,7 +223,7 @@ Input:
              
              //set our flags and new loss to 0
              flag_h[m] = 0;
-             //new_loss_h[m] = 0;
+             new_loss_h[m] = 0;
           }
           err = cudaMemcpy(city_swap_one_g, city_swap_one_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
           printf("Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
@@ -234,7 +234,7 @@ Input:
           cudaMemcpy(r_g, r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(flag_g, flag_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
-          //cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
           
  
           // Number of thread blocks in grid
@@ -249,7 +249,7 @@ Input:
           cudaMemcpy(flag_h, flag_g, t_num * sizeof(int), cudaMemcpyDeviceToHost);
           // In tspLoss, we don't actually need the newest route to be copied over
           //cudaMemcpy(salesman_route, salesman_route_g, N* sizeof(int), cudaMemcpyHostToDevice);
-          cudaMemcpy(new_loss_h, new_loss_g, t_num * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(new_loss_h, new_loss_g, t_num * sizeof(float), cudaMemcpyDeviceToHost);
           
           /* 
           Here we check for a success
@@ -289,17 +289,17 @@ Input:
      getchar();
      */
      }
-     printf("Final Route:\n");
+     printf("\n Final Route:\n");
      for (int i = 0; i < N; i++)
        printf("%d ",salesman_route[i]);    
      cudaFree(city_swap_one_g);
      cudaFree(city_swap_two_g);
      cudaFree(dist_g);
      cudaFree(salesman_route_g);
-     cudaFree(&T_g);
+     cudaFree(T_g);
      cudaFree(r_g);
      cudaFree(flag_g);
-     cudaFree(&new_loss_g);
+     cudaFree(new_loss_g);
      cudaFree(original_loss_g);
      return 0;
 }
