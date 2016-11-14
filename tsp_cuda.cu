@@ -4,9 +4,9 @@
 #include <cuda.h>
 #include <math.h>
 
-#define t_num 256
-#define N 100
 
+#define N 100
+#define t_num 256
 /* BEGIN KERNEL
 Input:
 - city_one: A vector of cities to swap for the first swap choice
@@ -47,25 +47,26 @@ __global__ static void tsp(int* city_one, int* city_two, float *dist, int *sales
     else
       flag[tid] = 0;
  }
+ // END KERNEL
  
  /* BEGIN KERNEL
 Input:
-- city_one: [size(threads)]
-    - An integer vector of cities to swap for the first swap choice
-- city_two: [size(threads)]
-    - An integer vector of cities to swap for the second swap choice
-- dist: [size(N * N)] 
-    - A floating point distance matrix of each city
-- salesman_route: [size(threads * N)]
-    - An integer matrix of the route the salesman will travel
-- original_loss: [size(1)]
-    - A floating point giving the original trips loss function
-- new_loss: [size(threads)]
-    - A floating point vector of the proposed trips loss function
-- T: [size(1)]
-    - A floating point of the current temperature
-- r: [size(threads)]
-    - A floating point the random number to compare against for S.A.
+- city_one: [integer(threads)]
+    - Vector of cities to swap for the first swap choice
+- city_two: [integer(threads)]
+    - Vector of cities to swap for the second swap choice
+- dist: [float(N * N)] 
+    - Distance matrix of each city
+- salesman_route: [integer(N)]
+    - Vector of the route the salesman will travel
+- original_loss: [float(1)]
+    - The original trips loss function
+- new_loss: [float(threads)]
+    - Vector of values for the proposed trips loss function
+- T: [float(1)]
+    - The current temperature
+- r: [float(threads)]
+    - The random number to compare against for S.A.
 */
  __global__ static void tspLoss(int* city_one, int* city_two, float *dist,
                                 int *salesman_route, float *original_loss, float *new_loss,
@@ -167,21 +168,21 @@ Input:
      
      /*
      Defining device variables:
-     city_swap_one_h/g: 
+     city_swap_one_h/g: [integer(t_num)]
        - Host/Device memory for city one
-     city_swap_two_h/g:
+     city_swap_two_h/g: [integer(t_num)]
        - Host/Device memory for city two
-     flag_h/g:
+     flag_h/g: [integer(t_num)]
        - Host/Device memory for flag of accepted step
-     salesman_route_g:
+     salesman_route_g: [integer(N)]
        - Device memory for the salesmans route
-     r_g:  
+     r_g:  [float(t_num)]
        - Device memory for the random number when deciding acceptance
-     flag_h/g:
+     flag_h/g: [integer(t_num)]
        - host/device memory for acceptance vector
-     original_loss_g: 
+     original_loss_g: [integer(1)]
        - The device memory for the current loss function
-     new_loss_h/g: 
+     new_loss_h/g: [integer(t_num)]
        - The host/device memory for the proposal loss function
      */
      int city_swap_one_h[t_num], city_swap_one_g[t_num],
@@ -190,12 +191,12 @@ Input:
          flag_h[t_num], flag_g[t_num];
          
      float original_loss_g[1];
-     float new_loss_h[t_num] = {0.0}, new_loss_g[t_num];   
+     float new_loss_h[t_num], new_loss_g[t_num];   
      
      cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(int));
      cudaMalloc((void**)&city_swap_two_g, t_num * sizeof(int));
      cudaMalloc((void**)&dist_g, N * N * sizeof(float));
-     cudaMalloc((void**)&salesman_route_g, N * t_num * sizeof(int));
+     cudaMalloc((void**)&salesman_route_g, N * sizeof(int));
      cudaMalloc((void**)&original_loss_g, sizeof(float));
      cudaMalloc((void**)&new_loss_g, t_num * sizeof(float));
      cudaMalloc((void**)&T_g, sizeof(float));
@@ -231,7 +232,7 @@ Input:
           cudaMemcpy(r_g, r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(flag_g, flag_h, t_num* sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
+          //cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
           
  
           // Number of thread blocks in grid
