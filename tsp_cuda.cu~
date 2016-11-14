@@ -223,7 +223,9 @@ Input:
              flag_h[m] = 0;
              //new_loss_h[m] = 0;
           }
+          cudaThreadSynchronize();
           cudaMemcpy(city_swap_one_g, city_swap_one_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
+          cudaThreadSynchronize();
           cudaMemcpy(city_swap_two_g, city_swap_two_h, t_num * sizeof(int), cudaMemcpyHostToDevice);
           cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(int), cudaMemcpyHostToDevice);
