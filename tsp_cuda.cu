@@ -5,7 +5,7 @@
 #include <math.h>
 
 
-#define N 10000 
+#define N 15000 
 #define t_num 1024
 #define GRID_SIZE 512000
  
@@ -168,7 +168,6 @@ Input:
      //float dist[N * N];
      float *dist = (float *)malloc(N * N * sizeof(float));
      
-     printf("Computing Distance matrix of size %d:\n", N);
      for(i = 0; i < N; i++){
          for (j = 0; j < N; j++){
              // Calculate the euclidian distance between each city
@@ -177,7 +176,6 @@ Input:
                                (location[j].y - location[j].y) * (location[i].y - location[j].y);
          }
      }
-     printf("Finished Computing Distance matrix of size %d:\n", N);
      // Calculate the original loss
      float original_loss = 0;
      for (i = 0; i < N - 1; i++){
@@ -186,7 +184,7 @@ Input:
      printf("Original Loss is: %.6f \n", original_loss);
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float *dist_g, T = 999999999, *T_g, *r_g;
+     float *dist_g, T = 999999999999, *T_g, *r_g;
      float *r_h = (float *)malloc(GRID_SIZE * sizeof(float));
      /*
      Defining device variables:
@@ -229,7 +227,7 @@ Input:
      
      cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
      // Beta is the decay rate
-     float beta = 0.01;
+     float beta = 0.001;
      float a = T; 
      float f;
      
@@ -244,17 +242,18 @@ Input:
              j = (unsigned int)floor(1 + city_swap_one_h[m] * f); 
              // pick second city to swap
              city_swap_two_h[m] = (city_swap_one_h[m] + j) % N;
+             // Check we are not at the first or last city for city two
              if (city_swap_two_h[m] == 0)
                city_swap_two_h[m] += 1;
              if (city_swap_two_h[m] == N - 1)
                city_swap_two_h[m] -= 1;
-             //printf("\n City one is %d and city two is %d \n", city_swap_one_h[m], city_swap_two_h[m]);
              r_h[m] = (float)rand() / (float)RAND_MAX ;
              
              //set our flags and new loss to 0
              flag_h[m] = 0;
              new_loss_h[m] = 0;
           }
+          // Copy memory from host to device
           err = cudaMemcpy(city_swap_one_g, city_swap_one_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
           //printf("\n Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
           cudaMemcpy(city_swap_two_g, city_swap_two_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
@@ -305,11 +304,10 @@ Input:
                      printf("%d ", salesman_route[j]);
                   }
                   */
-                  //T -= T*beta;
                   break;
               }
            // We are just going to decrease temp anyway for now
-          }   
+          }
      }
      printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
      /*
