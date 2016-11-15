@@ -5,7 +5,7 @@
 #include <math.h>
 
 
-#define N 1100
+#define N 10000
 #define t_num 1024
  
  /* BEGIN KERNEL
@@ -175,7 +175,7 @@ Input:
      }
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float *dist_g, T = 100, *T_g, r_h[t_num], *r_g;
+     float *dist_g, T = 10000, *T_g, r_h[t_num], *r_g;
      
      /*
      Defining device variables:
@@ -306,9 +306,11 @@ Input:
      */
      }
      printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
+     /*
      printf("\n Final Route:\n");
      for (i = 0; i < N; i++)
-       printf("%d ",salesman_route[i]);    
+       printf("%d ",salesman_route[i]);
+     */    
      cudaFree(city_swap_one_g);
      cudaFree(city_swap_two_g);
      cudaFree(dist_g);

@@ -8,6 +8,14 @@
 #define N 10000
 #define t_num 1024
  
+ /*
+ Some compliation options that can speed things up
+ --use_fast_math 
+ --optimize=5
+ --gpu-architecture=compute_35
+ I use something like
+  nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_cuda.cu -o tsp_cuda
+ */
  /* BEGIN KERNEL
 Input:
 - city_one: [unsigned integer(threads)]
@@ -175,7 +183,7 @@ Input:
      }
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float *dist_g, T = 100, *T_g, r_h[t_num], *r_g;
+     float *dist_g, T = 10000, *T_g, r_h[t_num], *r_g;
      
      /*
      Defining device variables:
@@ -214,7 +222,10 @@ Input:
      cudaMalloc((void**)&T_g, sizeof(float));
      cudaMalloc((void**)&r_g, t_num * sizeof(float));
      cudaMalloc((void**)&flag_g, t_num * sizeof(unsigned int));
-     // Beta is the temporary decay rate
+     
+     
+     cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
+     // Beta is the decay rate
      float beta = 0.001;
      float a = 1; 
      float f;
@@ -244,7 +255,6 @@ Input:
           err = cudaMemcpy(city_swap_one_g, city_swap_one_h, t_num * sizeof(unsigned int), cudaMemcpyHostToDevice);
           //printf("\n Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
           cudaMemcpy(city_swap_two_g, city_swap_two_h, t_num * sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(unsigned int), cudaMemcpyHostToDevice);
           cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(r_g, r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
@@ -306,9 +316,11 @@ Input:
      */
      }
      printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
+     /*
      printf("\n Final Route:\n");
      for (i = 0; i < N; i++)
-       printf("%d ",salesman_route[i]);    
+       printf("%d ",salesman_route[i]);
+     */    
      cudaFree(city_swap_one_g);
      cudaFree(city_swap_two_g);
      cudaFree(dist_g);
