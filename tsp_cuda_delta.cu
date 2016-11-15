@@ -5,11 +5,12 @@
 #include <math.h>
 
 
-#define N 15000 
+#define N 100 
 #define t_num 1024
-#define GRID_SIZE 512000
+#define GRID_SIZE 1024
  
  /* 
+ For more samples define GRID_SIZE as a multiple of t_num such as 512000
  Some compliation options that can speed things up
  --use_fast_math 
  --optimize=5
@@ -32,33 +33,38 @@ __global__ static void tsp(unsigned int* city_one,unsigned int* city_two,
                            float *T, float *r,
                            unsigned int *flag){
     
-    const int tid = threadIdx.x;
-    float delta, p, b = 1;
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    float delta, p;
+    unsigned int city_one_swap = city_one[tid];
+    unsigned int city_two_swap = city_two[tid];
     
-    // first city to swap
-    int salesman_route_city_one = salesman_route[city_one[tid]];
-    int salesman_route_iminus_mod = salesman_route[(city_one[tid] - 1 + N) % N];
-    int salesman_route_iplus_mod  = salesman_route[(city_one[tid] + 1) % N];
+    // check the original distance for city_one and the city before and after
+    float forward_orig_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_one_swap + 1]];
+    float backward_orig_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_one_swap - 1]];
+    // same
+    float forward_orig_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_two_swap + 1]];
+    float backward_orig_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_two_swap - 1]];
     
-    // second city to swap
-    int salesman_route_city_two = salesman_route[city_two[tid]];
-    int salesman_route_kplus_mod  = salesman_route[city_two[tid] + 1 % N];
-    int salesman_route_kminus_mod = salesman_route[(city_two[tid] - 1 + N) % N];
+    // The original distance
+    float original_dist = forward_orig_one + backward_orig_one + forward_orig_two + backward_orig_two;
     
-    // we should return this so we know the minimum route -S.
-    delta = dist[salesman_route_iminus_mod * N + salesman_route_city_two] +
-            dist[salesman_route_city_two * N + salesman_route_iplus_mod]  +
-            dist[salesman_route_kminus_mod * N + salesman_route_city_one] +
-            dist[salesman_route_city_one * N + salesman_route_kplus_mod]  -
-            dist[salesman_route_iminus_mod * N + salesman_route_city_one] - 
-            dist[salesman_route_city_one * N + salesman_route_iplus_mod] -
-            dist[salesman_route_kminus_mod * N + salesman_route_city_two] - 
-            dist[salesman_route_city_two * N + salesman_route_kplus_mod];
+    // check the proposed distance for city_one and the city before and after
+    float forward_prop_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_two_swap + 1]];
+    float backward_prop_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_two_swap - 1]];
+    //same
+    float forward_prop_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_one_swap + 1]];
+    float backward_prop_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_one_swap - 1]];
+    
+    // The proposed distance
+    float proposed_dist = forward_prop_one + backward_prop_one + forward_prop_two + backward_prop_two;
+    
+    
             
-    if (delta < 0.0){
+    if (proposed_dist < original_dist){
       flag[tid] = 1;
     } else {
-      p = exp(-delta * b / T[0]);
+      delta = proposed_dist - original_dist;
+      p = exp(-delta/ T[0]);
       if (p > r[tid])
         flag[tid] = 1;
     }
