@@ -9,7 +9,7 @@
 #define t_num 1024
 #define GRID_SIZE 512000
  
- /*
+ /* 
  Some compliation options that can speed things up
  --use_fast_math 
  --optimize=5
@@ -17,86 +17,53 @@
  I use something like
   nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_cuda.cu -o tsp_cuda
  */
- /* BEGIN KERNEL
+ 
+ /* TSP With Only Difference Calculation
 Input:
-- city_one: [unsigned integer(threads)]
-    - Vector of cities to swap for the first swap choice
-- city_two: [unsinged integer(threads)]
-    - Vector of cities to swap for the second swap choice
-- dist: [float(N * N)] 
-    - Distance matrix of each city
-- salesman_route: [unsigned integer(N)]
-    - Vector of the route the salesman will travel
-- original_loss: [float(1)]
-    - The original trips loss function
-- new_loss: [float(threads)]
-    - Vector of values for the proposed trips loss function
-- T: [float(1)]
-    - The current temperature
-- r: [float(threads)]
-    - The random number to compare against for S.A.
+- i: A vector of cities to swap for the first swap choice
+- k: A vector of cities to swap for the second swap choice
+- dist: The distance matrix of each city
+- salesman_route: The route the salesman will travel
+- T: The current temperature
+- r: The random number to compare against for S.A.
 */
- __global__ static void tspLoss(const unsigned int* __restrict__ city_one,
-                                const unsigned int* __restrict__ city_two,
-                                const float * __restrict__ dist,
-                                const unsigned int* __restrict__ salesman_route,
-                                const float* __restrict__ original_loss, float *new_loss,
-                                const float* __restrict__ T,
-                                const float* __restrict__ r,
-                                 unsigned int* flag){
+__global__ static void tsp(unsigned int* city_one,unsigned int* city_two,
+                           float *dist, unsigned int *salesman_route,
+                           float *T, float *r,
+                           unsigned int *flag){
     
-    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int tid = threadIdx.x;
     float delta, p, b = 1;
-    float sum = 0;
-    //__shared__ int volatile winner[1];
-    //winner[0] = 0;
-    // make the proposal route
-    unsigned int proposal_route[N];
-    for (int i = 0; i < N; i++)
-        proposal_route[i] = salesman_route[i];
     
-    // Do the switch    
-    proposal_route[city_one[tid]] = salesman_route[city_two[tid]];
-    proposal_route[city_two[tid]] = salesman_route[city_one[tid]];
+    // first city to swap
+    int salesman_route_city_one = salesman_route[city_one[tid]];
+    int salesman_route_iminus_mod = salesman_route[(city_one[tid] - 1 + N) % N];
+    int salesman_route_iplus_mod  = salesman_route[(city_one[tid] + 1) % N];
     
-    // evaluate new route's loss function
-    for (int i = 0; i < N - 1; i++)
-         sum += dist[proposal_route[i] * N + proposal_route[i + 1]];
+    // second city to swap
+    int salesman_route_city_two = salesman_route[city_two[tid]];
+    int salesman_route_kplus_mod  = salesman_route[city_two[tid] + 1 % N];
+    int salesman_route_kminus_mod = salesman_route[(city_two[tid] - 1 + N) % N];
     
-    /* We're going to start trying the trap here
-    */
-    // Acceptance / Rejection step
-    if (sum < original_loss[0]){
-        
-        new_loss[tid] = sum;
+    // we should return this so we know the minimum route -S.
+    delta = dist[salesman_route_iminus_mod * N + salesman_route_city_two] +
+            dist[salesman_route_city_two * N + salesman_route_iplus_mod]  +
+            dist[salesman_route_kminus_mod * N + salesman_route_city_one] +
+            dist[salesman_route_city_one * N + salesman_route_kplus_mod]  -
+            dist[salesman_route_iminus_mod * N + salesman_route_city_one] - 
+            dist[salesman_route_city_one * N + salesman_route_iplus_mod] -
+            dist[salesman_route_kminus_mod * N + salesman_route_city_two] - 
+            dist[salesman_route_city_two * N + salesman_route_kplus_mod];
+            
+    if (delta < 0.0){
+      flag[tid] = 1;
+    } else {
+      p = exp(-delta * b / T[0]);
+      if (p > r[tid])
         flag[tid] = 1;
-        //winner[0] = 1;
-    } 
-    /* 
-      We would have a kill switch here. If the shared memory var winner has changed to 1,
-        then we know someone has already won and we can kill everything else
-    
-    if (winner[0]){
-      __syncthreads();  
-      something something kill
-    */  
-    if (sum >= original_loss[0]){
-        delta = sum - original_loss[0];
-        p = exp(-(delta * b / T[0]));
-        if (p > r[tid]){
-            //winner[0] = 1;
-            flag[tid] = 1;
-            new_loss[tid] = sum;
-        } 
     }
-    /*
-    if (winner[0]){
-      __syncthreads();  
-      something something kill
-    */  
-      
  }
- // END KERNEL
+ 
  
  
  /* Function to generate random numbers in interval
@@ -210,16 +177,13 @@ Input:
      unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
      unsigned int *city_swap_one_g, *city_swap_two_g, *salesman_route_g, *flag_g;
 
-     float *original_loss_g, *new_loss_g;
-     float *new_loss_h = (float *)malloc(GRID_SIZE * sizeof(float)); 
+     float new_loss_h = 0;
      
      cudaError_t err = cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
      //printf("\n Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
      cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
      cudaMalloc((void**)&dist_g, N * N * sizeof(float));
      cudaMalloc((void**)&salesman_route_g, N * sizeof(unsigned int));
-     cudaMalloc((void**)&original_loss_g, sizeof(float));
-     cudaMalloc((void**)&new_loss_g, GRID_SIZE * sizeof(float));
      cudaMalloc((void**)&T_g, sizeof(float));
      cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(float));
      cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
@@ -251,7 +215,6 @@ Input:
              
              //set our flags and new loss to 0
              flag_h[m] = 0;
-             new_loss_h[m] = 0;
           }
           // Copy memory from host to device
           err = cudaMemcpy(city_swap_one_g, city_swap_one_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
@@ -261,20 +224,19 @@ Input:
           cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(flag_g, flag_h, GRID_SIZE* sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(new_loss_g, new_loss_h, GRID_SIZE * sizeof(float), cudaMemcpyHostToDevice);
  
           // Number of thread blocks in grid
           dim3 blocksPerGrid(1,GRID_SIZE/t_num,1);
           dim3 threadsPerBlock(1,t_num,1);
     
-          tspLoss<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+          //static void tsp(int* city_one, int* city_two, float *dist, int *salesman_route,
+          //                 float *T, float *r, int *flag){
+          tsp<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
                                                          dist_g, salesman_route_g,
-                                                         original_loss_g, new_loss_g,
                                                          T_g, r_g, flag_g);
+
           cudaThreadSynchronize();          
           cudaMemcpy(flag_h, flag_g, GRID_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-          cudaMemcpy(new_loss_h, new_loss_g, GRID_SIZE * sizeof(float), cudaMemcpyDeviceToHost);
           /* 
           Here we check for a success
             The first proposal trip accepted becomes the new starting trip 
@@ -289,9 +251,11 @@ Input:
                   unsigned int tmp = salesman_route[city_swap_one_h[i]];
                   salesman_route[city_swap_one_h[i]] = salesman_route[city_swap_two_h[i]];
                   salesman_route[city_swap_two_h[i]] = tmp;
-                  
+                  for (i = 0; i < N - 1; i++){
+                    new_loss_h += dist[salesman_route[i] * N + salesman_route[i+1]];
+                  }
                   // set old loss function to new
-                  original_loss = new_loss_h[i];
+                  original_loss = new_loss_h;
                   //decrease temp
                   T -= T*beta;
                   //if (T < 300){
@@ -306,7 +270,6 @@ Input:
                   */
                   break;
               }
-           // We are just going to decrease temp anyway for now
           }
      }
      printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
@@ -322,14 +285,11 @@ Input:
      cudaFree(T_g);
      cudaFree(r_g);
      cudaFree(flag_g);
-     cudaFree(new_loss_g);
-     cudaFree(original_loss_g);
      free(dist);
      free(salesman_route);
      free(city_swap_one_h);
      free(city_swap_two_h);
      free(flag_h);
-     free(new_loss_h);
      return 0;
 }
              
