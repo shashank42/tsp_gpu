@@ -5,8 +5,8 @@
 #include <math.h>
 
 
-#define N 100
-#define t_num 256
+#define N 1000
+#define t_num 1024
  
  /* BEGIN KERNEL
 Input:
@@ -27,9 +27,11 @@ Input:
 - r: [float(threads)]
     - The random number to compare against for S.A.
 */
- __global__ static void tspLoss(unsigned int* city_one,unsigned int* city_two, float *dist,
-                                unsigned int *salesman_route, float *original_loss, float *new_loss,
-                                float *T, float *r,unsigned int* flag){
+ __global__ static void tspLoss(unsigned int* city_one,unsigned int* city_two,
+                                float *dist, unsigned int *salesman_route,
+                                const float *original_loss, float *new_loss,
+                                const float *T, float *r,
+                                 unsigned int* flag){
     
     const int tid = threadIdx.x;
     float delta, p, b = 1;
@@ -148,7 +150,8 @@ Input:
      for (i = 0; i < N - 1; i++){
          original_loss += dist[salesman_route[i] * N + salesman_route[i+1]];
      }
-     
+     // Keep the original loss for comparison pre/post algorithm
+     float starting_loss = original_loss;
      float *dist_g, T = 10, *T_g, r_h[t_num], *r_g;
      
      /*
@@ -189,11 +192,11 @@ Input:
      cudaMalloc((void**)&r_g, t_num * sizeof(float));
      cudaMalloc((void**)&flag_g, t_num * sizeof(unsigned int));
      // Beta is the temporary decay rate
-     float beta = 0.0001;
+     float beta = 0.00001;
      float a = 1; 
      float f;
      
-     while (T > 0.1){
+     while (T > 0.01){
          // Init parameters
          //printf("Current Temperature is: %.6f:", T);
          for(m = 0; m < t_num; m++){
@@ -231,8 +234,10 @@ Input:
           dim3 blocksPerGrid(1,1,1);
           dim3 threadsPerBlock(1,t_num,1);
     
-          tspLoss<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g, dist_g, salesman_route_g,
-                                   original_loss_g, new_loss_g, T_g, r_g, flag_g);
+          tspLoss<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+                                                         dist_g, salesman_route_g,
+                                                         original_loss_g, new_loss_g,
+                                                         T_g, r_g, flag_g);
                     
           cudaMemcpy(flag_h, flag_g, t_num * sizeof(unsigned int), cudaMemcpyDeviceToHost);
           cudaMemcpy(new_loss_h, new_loss_g, t_num * sizeof(float), cudaMemcpyDeviceToHost);
@@ -264,11 +269,12 @@ Input:
                      printf("%d ", salesman_route[j]);
                   }
                   */
+                  T -= T*beta;
                   break;
               }
            // We are just going to decrease temp anyway for now
           }
-     T -= T*beta;     
+          
      /*
      This is to check the flags
      for(m = 0; m < t_num; m++){
@@ -278,6 +284,7 @@ Input:
      getchar();
      */
      }
+     printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
      printf("\n Final Route:\n");
      for (i = 0; i < N; i++)
        printf("%d ",salesman_route[i]);    
