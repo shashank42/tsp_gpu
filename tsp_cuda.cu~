@@ -36,6 +36,8 @@ Input:
     const int tid = threadIdx.x;
     float delta, p, b = 1;
     float sum = 0;
+    //__shared__ int volatile winner[1];
+    //winner[0] = 0;
     // make the proposal route
     unsigned int proposal_route[N];
     for (int i = 0; i < N; i++)
@@ -49,21 +51,38 @@ Input:
     for (int i = 0; i < N - 1; i++)
          sum += dist[proposal_route[i] * N + proposal_route[i + 1]];
     
-    new_loss[tid] = sum;
+    /* We're going to start trying the trap here
+    */
     // Acceptance / Rejection step
     if (sum < original_loss[0]){
-        flag[tid] = 1;
+        
         new_loss[tid] = sum;
-    } else {
-        delta = original_loss[0] - sum;
+        flag[tid] = 1;
+        //winner[0] = 1;
+    } 
+    /* 
+      We would have a kill switch here. If the shared memory var winner has changed to 1,
+        then we know someone has already won and we can kill everything else
+    
+    if (winner[0]){
+      __syncthreads();  
+      something something kill
+    */  
+    if (sum >= original_loss[0]){
+        delta = sum - original_loss[0];
         p = exp(-(delta * b / T[0]));
         if (p > r[tid]){
+            //winner[0] = 1;
             flag[tid] = 1;
             new_loss[tid] = sum;
-        } else {
-            flag[tid] = 0;
-        }
+        } 
     }
+    /*
+    if (winner[0]){
+      __syncthreads();  
+      something something kill
+    */  
+      
  }
  // END KERNEL
  
@@ -150,8 +169,9 @@ Input:
      for (i = 0; i < N - 1; i++){
          original_loss += dist[salesman_route[i] * N + salesman_route[i+1]];
      }
-     
-     float *dist_g, T = 10, *T_g, r_h[t_num], *r_g;
+     // Keep the original loss for comparison pre/post algorithm
+     float starting_loss = original_loss;
+     float *dist_g, T = 100, *T_g, r_h[t_num], *r_g;
      
      /*
      Defining device variables:
@@ -178,7 +198,7 @@ Input:
          flag_h[t_num], *flag_g;
          
      float *original_loss_g;
-     float new_loss_h[t_num], *new_loss_g;   
+     float new_loss_h[t_num], *new_loss_g; 
      
      cudaError_t err = cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(unsigned int));
      //printf("\n Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
@@ -191,11 +211,11 @@ Input:
      cudaMalloc((void**)&r_g, t_num * sizeof(float));
      cudaMalloc((void**)&flag_g, t_num * sizeof(unsigned int));
      // Beta is the temporary decay rate
-     float beta = 0.00001;
+     float beta = 0.001;
      float a = 1; 
      float f;
      
-     while (T > 0.01){
+     while (T > 1){
          // Init parameters
          //printf("Current Temperature is: %.6f:", T);
          for(m = 0; m < t_num; m++){
@@ -211,7 +231,7 @@ Input:
              if (city_swap_two_h[m] == N - 1)
                city_swap_two_h[m] -= 1;
              //printf("\n City one is %d and city two is %d \n", city_swap_one_h[m], city_swap_two_h[m]);
-             r_h[m] = rand() / 2147483647.0;
+             r_h[m] = (float)rand() / (float)RAND_MAX ;
              
              //set our flags and new loss to 0
              flag_h[m] = 0;
@@ -227,7 +247,6 @@ Input:
           cudaMemcpy(flag_g, flag_h, t_num* sizeof(unsigned int), cudaMemcpyHostToDevice);
           cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
           cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
-          
  
           // Number of thread blocks in grid
           dim3 blocksPerGrid(1,1,1);
@@ -237,10 +256,9 @@ Input:
                                                          dist_g, salesman_route_g,
                                                          original_loss_g, new_loss_g,
                                                          T_g, r_g, flag_g);
-                    
+          cudaThreadSynchronize();          
           cudaMemcpy(flag_h, flag_g, t_num * sizeof(unsigned int), cudaMemcpyDeviceToHost);
           cudaMemcpy(new_loss_h, new_loss_g, t_num * sizeof(float), cudaMemcpyDeviceToHost);
-          
           /* 
           Here we check for a success
             The first proposal trip accepted becomes the new starting trip 
@@ -268,11 +286,12 @@ Input:
                      printf("%d ", salesman_route[j]);
                   }
                   */
+                  T -= T*beta;
                   break;
               }
            // We are just going to decrease temp anyway for now
           }
-     T -= T*beta;     
+          
      /*
      This is to check the flags
      for(m = 0; m < t_num; m++){
@@ -282,6 +301,7 @@ Input:
      getchar();
      */
      }
+     printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
      printf("\n Final Route:\n");
      for (i = 0; i < N; i++)
        printf("%d ",salesman_route[i]);    
