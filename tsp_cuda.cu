@@ -5,7 +5,7 @@
 #include <math.h>
 
 
-#define N 1000
+#define N 1100
 #define t_num 1024
  
  /* BEGIN KERNEL
@@ -27,10 +27,13 @@ Input:
 - r: [float(threads)]
     - The random number to compare against for S.A.
 */
- __global__ static void tspLoss(unsigned int* city_one,unsigned int* city_two,
-                                float *dist, unsigned int *salesman_route,
-                                const float *original_loss, float *new_loss,
-                                const float *T, float *r,
+ __global__ static void tspLoss(const unsigned int* __restrict__ city_one,
+                                const unsigned int* __restrict__ city_two,
+                                const float * __restrict__ dist,
+                                const unsigned int* __restrict__ salesman_route,
+                                const float* __restrict__ original_loss, float *new_loss,
+                                const float* __restrict__ T,
+                                const float* __restrict__ r,
                                  unsigned int* flag){
     
     const int tid = threadIdx.x;
@@ -137,7 +140,7 @@ Input:
      
      struct coordinates location[N];
      
-     unsigned int salesman_route[N];
+     unsigned int *salesman_route = (unsigned int *)malloc(N * sizeof(unsigned int));
      
      // just make one inital guess route, a simple linear path
      for (i = 0; i < N; i++)
@@ -153,7 +156,8 @@ Input:
      }
      
      // distance
-     float dist[N * N];
+     //float dist[N * N];
+     float *dist = (float *)malloc(N * N * sizeof(float));
      
      for(i = 0; i < N; i++){
          for (j = 0; j < N; j++){
@@ -314,6 +318,8 @@ Input:
      cudaFree(flag_g);
      cudaFree(new_loss_g);
      cudaFree(original_loss_g);
+     free(dist);
+     free(salesman_route);
      return 0;
 }
              
