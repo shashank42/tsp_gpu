@@ -5,9 +5,18 @@
 #include <math.h>
 
 
-#define N 10000
+#define N 10000 
 #define t_num 1024
+#define GRID_SIZE 512000
  
+ /*
+ Some compliation options that can speed things up
+ --use_fast_math 
+ --optimize=5
+ --gpu-architecture=compute_35
+ I use something like
+  nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_cuda.cu -o tsp_cuda
+ */
  /* BEGIN KERNEL
 Input:
 - city_one: [unsigned integer(threads)]
@@ -36,7 +45,7 @@ Input:
                                 const float* __restrict__ r,
                                  unsigned int* flag){
     
-    const int tid = threadIdx.x;
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     float delta, p, b = 1;
     float sum = 0;
     //__shared__ int volatile winner[1];
@@ -159,6 +168,7 @@ Input:
      //float dist[N * N];
      float *dist = (float *)malloc(N * N * sizeof(float));
      
+     printf("Computing Distance matrix of size %d:\n", N);
      for(i = 0; i < N; i++){
          for (j = 0; j < N; j++){
              // Calculate the euclidian distance between each city
@@ -167,16 +177,17 @@ Input:
                                (location[j].y - location[j].y) * (location[i].y - location[j].y);
          }
      }
-     
+     printf("Finished Computing Distance matrix of size %d:\n", N);
      // Calculate the original loss
      float original_loss = 0;
      for (i = 0; i < N - 1; i++){
          original_loss += dist[salesman_route[i] * N + salesman_route[i+1]];
      }
+     printf("Original Loss is: %.6f \n", original_loss);
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float *dist_g, T = 10000, *T_g, r_h[t_num], *r_g;
-     
+     float *dist_g, T = 999999999, *T_g, *r_g;
+     float *r_h = (float *)malloc(GRID_SIZE * sizeof(float));
      /*
      Defining device variables:
      city_swap_one_h/g: [integer(t_num)]
@@ -196,33 +207,36 @@ Input:
      new_loss_h/g: [integer(t_num)]
        - The host/device memory for the proposal loss function
      */
-     unsigned int city_swap_one_h[t_num], *city_swap_one_g,
-         city_swap_two_h[t_num], *city_swap_two_g,
-         *salesman_route_g,
-         flag_h[t_num], *flag_g;
-         
-     float *original_loss_g;
-     float new_loss_h[t_num], *new_loss_g; 
+     unsigned int *city_swap_one_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
+     unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
+     unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
+     unsigned int *city_swap_one_g, *city_swap_two_g, *salesman_route_g, *flag_g;
+
+     float *original_loss_g, *new_loss_g;
+     float *new_loss_h = (float *)malloc(GRID_SIZE * sizeof(float)); 
      
-     cudaError_t err = cudaMalloc((void**)&city_swap_one_g, t_num * sizeof(unsigned int));
+     cudaError_t err = cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
      //printf("\n Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
-     cudaMalloc((void**)&city_swap_two_g, t_num * sizeof(unsigned int));
+     cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
      cudaMalloc((void**)&dist_g, N * N * sizeof(float));
      cudaMalloc((void**)&salesman_route_g, N * sizeof(unsigned int));
      cudaMalloc((void**)&original_loss_g, sizeof(float));
-     cudaMalloc((void**)&new_loss_g, t_num * sizeof(float));
+     cudaMalloc((void**)&new_loss_g, GRID_SIZE * sizeof(float));
      cudaMalloc((void**)&T_g, sizeof(float));
-     cudaMalloc((void**)&r_g, t_num * sizeof(float));
-     cudaMalloc((void**)&flag_g, t_num * sizeof(unsigned int));
-     // Beta is the temporary decay rate
+     cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(float));
+     cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
+     
+     
+     cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
+     // Beta is the decay rate
      float beta = 0.001;
-     float a = 1; 
+     float a = T; 
      float f;
      
      while (T > 1){
          // Init parameters
          //printf("Current Temperature is: %.6f:", T);
-         for(m = 0; m < t_num; m++){
+         for(m = 0; m < GRID_SIZE; m++){
              // pick first city to swap
              city_swap_one_h[m] = rand_interval(1, N-2);
              // f defines how far the second city can be from the first
@@ -241,19 +255,18 @@ Input:
              flag_h[m] = 0;
              new_loss_h[m] = 0;
           }
-          err = cudaMemcpy(city_swap_one_g, city_swap_one_h, t_num * sizeof(unsigned int), cudaMemcpyHostToDevice);
+          err = cudaMemcpy(city_swap_one_g, city_swap_one_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
           //printf("\n Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
-          cudaMemcpy(city_swap_two_g, city_swap_two_h, t_num * sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(city_swap_two_g, city_swap_two_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
           cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(unsigned int), cudaMemcpyHostToDevice);
           cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(r_g, r_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(flag_g, flag_h, t_num* sizeof(unsigned int), cudaMemcpyHostToDevice);
+          cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(flag_g, flag_h, GRID_SIZE* sizeof(unsigned int), cudaMemcpyHostToDevice);
           cudaMemcpy(original_loss_g, &original_loss, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(new_loss_g, new_loss_h, t_num * sizeof(float), cudaMemcpyHostToDevice);
+          cudaMemcpy(new_loss_g, new_loss_h, GRID_SIZE * sizeof(float), cudaMemcpyHostToDevice);
  
           // Number of thread blocks in grid
-          dim3 blocksPerGrid(1,1,1);
+          dim3 blocksPerGrid(1,GRID_SIZE/t_num,1);
           dim3 threadsPerBlock(1,t_num,1);
     
           tspLoss<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
@@ -261,13 +274,13 @@ Input:
                                                          original_loss_g, new_loss_g,
                                                          T_g, r_g, flag_g);
           cudaThreadSynchronize();          
-          cudaMemcpy(flag_h, flag_g, t_num * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-          cudaMemcpy(new_loss_h, new_loss_g, t_num * sizeof(float), cudaMemcpyDeviceToHost);
+          cudaMemcpy(flag_h, flag_g, GRID_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+          cudaMemcpy(new_loss_h, new_loss_g, GRID_SIZE * sizeof(float), cudaMemcpyDeviceToHost);
           /* 
           Here we check for a success
             The first proposal trip accepted becomes the new starting trip 
           */
-          for (i = 0; i < t_num; i++){
+          for (i = 0; i < GRID_SIZE; i++){
               if (flag_h[i] == 0){
               //printf("Original Loss: %.6f \n", original_loss);
               //printf("Proposed Loss: %.6f \n", new_loss_h[i]);
@@ -282,28 +295,21 @@ Input:
                   original_loss = new_loss_h[i];
                   //decrease temp
                   T -= T*beta;
-                  printf(" Current Temperature is %.6f \n", T);
-                  printf("\n Current Loss is: %.6f \n", original_loss);
+                  //if (T < 300){
+                    printf(" Current Temperature is %.6f \n", T);
+                    printf("\n Current Loss is: %.6f \n", original_loss);
+                  //}
                   /*
                   printf("Best found trip so far\n");
                   for (j = 0; j < N; j++){
                      printf("%d ", salesman_route[j]);
                   }
                   */
-                  T -= T*beta;
+                  //T -= T*beta;
                   break;
               }
            // We are just going to decrease temp anyway for now
-          }
-          
-     /*
-     This is to check the flags
-     for(m = 0; m < t_num; m++){
-         printf("%d\n", flag_h[m]);
-     }
-     getchar();
-     getchar();
-     */
+          }   
      }
      printf("The starting loss was %.6f and the final loss was %.6f \n", starting_loss, original_loss);
      /*
@@ -322,6 +328,10 @@ Input:
      cudaFree(original_loss_g);
      free(dist);
      free(salesman_route);
+     free(city_swap_one_h);
+     free(city_swap_two_h);
+     free(flag_h);
+     free(new_loss_h);
      return 0;
 }
              
