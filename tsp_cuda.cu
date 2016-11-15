@@ -5,7 +5,7 @@
 #include <math.h>
 
 
-#define N 1100
+#define N 10000
 #define t_num 1024
  
  /* BEGIN KERNEL
