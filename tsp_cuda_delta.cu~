@@ -5,9 +5,9 @@
 #include <math.h>
 
 
-#define N 15000 
+#define N 25000 
 #define t_num 1024
-#define GRID_SIZE 1024000
+#define GRID_SIZE 2048000
  
  /* 
  For more samples define GRID_SIZE as a multiple of t_num such as 512000, 1024000, or the max - 1024 grid size 2147482623
@@ -21,16 +21,25 @@
  
  /* TSP With Only Difference Calculation
 Input:
-- i: A vector of cities to swap for the first swap choice
-- k: A vector of cities to swap for the second swap choice
-- dist: The distance matrix of each city
-- salesman_route: The route the salesman will travel
-- T: The current temperature
-- r: The random number to compare against for S.A.
+- city_one: [unsigned integer(GRID_SIZE)]
+  - Cities to swap for the first swap choice
+- city_two: [unsigned integer(GRID_SIZE)] 
+  - Cities to swap for the second swap choice
+- dist: [float(N * N)]
+  - The distance matrix of each city
+- salesman_route: [unsigned integer(N)] 
+  - The route the salesman will travel
+- T: [unsigned integer(1)] 
+  - The current temperature
+- r: [unsigned integer(GRID_SIZE)]
+  - The random number to compare against for S.A.
 */
-__global__ static void tsp(unsigned int* city_one,unsigned int* city_two,
-                           float *dist, unsigned int *salesman_route,
-                           float *T, float *r,
+__global__ static void tsp(unsigned int* __restrict__ city_one,
+                           unsigned int* __restrict__ city_two,
+                           float* __restrict__ dist,
+                           unsigned int* __restrict__ salesman_route,
+                           float* __restrict__ T,
+                           float* __restrict__ r,
                            unsigned int *flag,
                            volatile unsigned int *global_flag){
     
