@@ -5,12 +5,12 @@
 #include <math.h>
 
 
-#define N 25000 
+#define N 100 
 #define t_num 1024
-#define GRID_SIZE 2048000
+#define GRID_SIZE 1024
  
  /* 
- For more samples define GRID_SIZE as a multiple of t_num such as 512000, 1024000, or the max - 1024 grid size 2147482623
+ For more samples define GRID_SIZE as a multiple of t_num such as 512000, 2048000, or the (max - 1024) grid size 2147482623
  Some compliation options that can speed things up
  --use_fast_math 
  --optimize=5
@@ -18,6 +18,12 @@
  I use something like
   nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_cuda.cu -o tsp_cuda
  */
+ 
+// city's x y coordinates
+typedef struct {
+  int x;
+  int y;
+} coordinates;
  
  /* TSP With Only Difference Calculation
 Input:
@@ -36,45 +42,76 @@ Input:
 */
 __global__ static void tsp(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
-                           float* __restrict__ dist,
+                           coordinates* __restrict__ location,
                            unsigned int* __restrict__ salesman_route,
                            float* __restrict__ T,
                            float* __restrict__ r,
                            unsigned int *flag,
                            volatile unsigned int *global_flag){
+                           
     
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     float delta, p;
     unsigned int city_one_swap = city_one[tid];
     unsigned int city_two_swap = city_two[tid];
     
-    // check the original distance for city_one and the city before and after
-    float forward_orig_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_one_swap + 1]];
-    float backward_orig_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_one_swap - 1]];
-    // same
-    float forward_orig_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_two_swap + 1]];
-    float backward_orig_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_two_swap - 1]];
+    unsigned int trip_city_one      = salesman_route[city_one_swap];
+    unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
+    unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
     
-    // The original distance
-    float original_dist = forward_orig_one + backward_orig_one + forward_orig_two + backward_orig_two;
+    unsigned int trip_city_two      = salesman_route[city_two_swap];
+    unsigned int trip_city_two_pre  = salesman_route[city_two_swap - 1];
+    unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
+    // The original and post distances
+    float original_dist = 0;
+    float proposal_dist = 0;
     
-    // check the proposed distance for city_one and the city before and after
-    float forward_prop_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_two_swap + 1]];
-    float backward_prop_one = dist[salesman_route[city_one_swap] * N + salesman_route[city_two_swap - 1]];
-    //same
-    float forward_prop_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_one_swap + 1]];
-    float backward_prop_two = dist[salesman_route[city_two_swap] * N + salesman_route[city_one_swap - 1]];
-    
-    // The proposed distance
-    float proposed_dist = forward_prop_one + backward_prop_one + forward_prop_two + backward_prop_two;
+    // We will always have 4 calculations for original distance and the proposed distance, so we just unroll the loop here
+    // TODO: It may be nice to make vars for the locations as well so this does not look so gross
+    // The first city, unswapped. The one behind it and the one in front of it
+    original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
+                        (location[trip_city_one_pre].x - location[trip_city_one].x) +
+                        (location[trip_city_one_pre].y - location[trip_city_one].y) *
+                        (location[trip_city_one_pre].y - location[trip_city_one].y);
+    original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+                        (location[trip_city_one_post].x - location[trip_city_one].x) +
+                        (location[trip_city_one_post].y - location[trip_city_one].y) *
+                        (location[trip_city_one_post].y - location[trip_city_one].y);
+    // The second city, unswapped. The one behind it and the one in front of it
+    original_dist += (location[trip_city_two_pre].x - location[trip_city_two].x) *
+                        (location[trip_city_two_pre].x - location[trip_city_two].x) +
+                        (location[trip_city_two_pre].y - location[trip_city_two].y) *
+                        (location[trip_city_two_pre].y - location[trip_city_two].y);
+    original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+                        (location[trip_city_two_post].x - location[trip_city_two].x) +
+                        (location[trip_city_two_post].y - location[trip_city_two].y) *
+                        (location[trip_city_two_post].y - location[trip_city_two].y);
+    // The first city, swapped. The one behind it and the one in front of it
+    proposal_dist += (location[trip_city_two_pre].x - location[trip_city_one].x) *
+                        (location[trip_city_two_pre].x - location[trip_city_one].x) +
+                        (location[trip_city_two_pre].y - location[trip_city_one].y) *
+                        (location[trip_city_two_pre].y - location[trip_city_one].y);
+    proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
+                        (location[trip_city_two_post].x - location[trip_city_one].x) +
+                        (location[trip_city_two_post].y - location[trip_city_one].y) *
+                        (location[trip_city_two_post].y - location[trip_city_one].y);
+    // The second city, swapped. The one behind it and the one in front of it
+    proposal_dist += (location[trip_city_one_pre].x - location[trip_city_two].x) *
+                        (location[trip_city_one_pre].x - location[trip_city_two].x) +
+                        (location[trip_city_one_pre].y - location[trip_city_two].y) *
+                        (location[trip_city_one_pre].y - location[trip_city_two].y);
+    proposal_dist += (location[trip_city_one_post].x - location[trip_city_two].x) *
+                        (location[trip_city_one_post].x - location[trip_city_two].x) +
+                        (location[trip_city_one_post].y - location[trip_city_two].y) *
+                        (location[trip_city_one_post].y - location[trip_city_two].y);
     
     
             
-    if (proposed_dist < original_dist){
+    if (proposal_dist < original_dist){
       flag[tid] = 1;
       global_flag[0] = 1;
     } else {
-      delta = proposed_dist - original_dist;
+      delta = proposal_dist - original_dist;
       p = exp(-delta/ T[0]);
       if (p > r[tid]){
         flag[tid] = 1;
@@ -127,13 +164,8 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      // start counters for cities
      unsigned int i, j, m;
      
-     // city's x y coordinates
-     struct coordinates {
-         int x;
-         int y;
-     };
-     
-     struct coordinates location[N];
+     coordinates *location, *location_g;
+     location = (coordinates *)malloc(N * sizeof(coordinates));
      
      unsigned int *salesman_route = (unsigned int *)malloc(N * sizeof(unsigned int));
      
@@ -150,27 +182,19 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
          location[i].y = rand() % 1000;
      }
      
-     // distance
-     //float dist[N * N];
-     float *dist = (float *)malloc(N * N * sizeof(float));
-     
-     for(i = 0; i < N; i++){
-         for (j = 0; j < N; j++){
-             // Calculate the euclidian distance between each city
-             // use pow() here instead?
-             dist[i * N + j] = (location[i].x - location[j].x) * (location[i].x - location[j].x) +
-                               (location[j].y - location[j].y) * (location[i].y - location[j].y);
-         }
-     }
+
      // Calculate the original loss
      float original_loss = 0;
      for (i = 0; i < N - 1; i++){
-         original_loss += dist[salesman_route[i] * N + salesman_route[i+1]];
+         original_loss += (location[salesman_route[i]].x - location[salesman_route[i+1]].x) *
+                          (location[salesman_route[i]].x - location[salesman_route[i+1]].x) +
+                          (location[salesman_route[i]].y - location[salesman_route[i+1]].y) *
+                          (location[salesman_route[i]].y - location[salesman_route[i+1]].y);
      }
      printf("Original Loss is: %.6f \n", original_loss);
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float *dist_g, T = 999999999, *T_g, *r_g;
+     float T = 999999999, *T_g, *r_g;
      float *r_h = (float *)malloc(GRID_SIZE * sizeof(float));
      /*
      Defining device variables:
@@ -201,7 +225,7 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      cudaError_t err = cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
      //printf("\n Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
      cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
-     cudaMalloc((void**)&dist_g, N * N * sizeof(float));
+     cudaMalloc((void**)&location_g, N * sizeof(coordinates));
      cudaMalloc((void**)&salesman_route_g, N * sizeof(unsigned int));
      cudaMalloc((void**)&T_g, sizeof(float));
      cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(float));
@@ -209,7 +233,7 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      cudaMalloc((void**)&global_flag_g, sizeof(unsigned int));
      
      
-     cudaMemcpy(dist_g, dist, (N*N) * sizeof(float), cudaMemcpyHostToDevice);
+     cudaMemcpy(location_g, location, N * sizeof(coordinates), cudaMemcpyHostToDevice);
      // Beta is the decay rate
      float beta = 0.001;
      float new_loss_h = 0;
@@ -252,10 +276,8 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
           dim3 blocksPerGrid(GRID_SIZE/t_num,1,1);
           dim3 threadsPerBlock(t_num,1,1);
     
-          //static void tsp(int* city_one, int* city_two, float *dist, int *salesman_route,
-          //                 float *T, float *r, int *flag){
           tsp<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                         dist_g, salesman_route_g,
+                                                         location_g, salesman_route_g,
                                                          T_g, r_g, flag_g, global_flag_g);
 
           cudaThreadSynchronize();
@@ -278,7 +300,10 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
                     salesman_route[city_swap_two_h[i]] = tmp;
                     new_loss_h = 0;
                     for (i = 0; i < N - 1; i++){
-                      new_loss_h += dist[salesman_route[i] * N + salesman_route[i+1]];
+                      new_loss_h += (location[salesman_route[i]].x - location[salesman_route[i+1]].x) *
+                                    (location[salesman_route[i]].x - location[salesman_route[i+1]].x) +
+                                    (location[salesman_route[i]].y - location[salesman_route[i+1]].y) *
+                                    (location[salesman_route[i]].y - location[salesman_route[i+1]].y);
                     }
                     // set old loss function to new
                     original_loss = new_loss_h;
@@ -307,16 +332,16 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      */    
      cudaFree(city_swap_one_g);
      cudaFree(city_swap_two_g);
-     cudaFree(dist_g);
+     cudaFree(location_g);
      cudaFree(salesman_route_g);
      cudaFree(T_g);
      cudaFree(r_g);
      cudaFree(flag_g);
-     free(dist);
      free(salesman_route);
      free(city_swap_one_h);
      free(city_swap_two_h);
      free(flag_h);
+     free(location);
      return 0;
 }
              
