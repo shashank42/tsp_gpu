@@ -7,7 +7,7 @@
 
 #define N 1000000 
 #define t_num 1024
-#define GRID_SIZE 2048000
+#define GRID_SIZE 20480000
  
  /* 
  For more samples define GRID_SIZE as a multiple of t_num such as 512000, 2048000, or the (max - 1024) grid size 2147482623
