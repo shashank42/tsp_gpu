@@ -5,9 +5,9 @@
 #include <math.h>
 
 
-#define N 1000000 
+#define N 100000 
 #define t_num 1024
-#define GRID_SIZE 20480000
+#define GRID_SIZE 2048000
  
  /* 
  For more samples define GRID_SIZE as a multiple of t_num such as 512000, 2048000, or the (max - 1024) grid size 2147482623
@@ -194,7 +194,7 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      printf("Original Loss is: %.6f \n", original_loss);
      // Keep the original loss for comparison pre/post algorithm
      float starting_loss = original_loss;
-     float T = 999999999, *T_g, *r_g;
+     float T = 99999,T_start = 99999, *T_g, *r_g;
      float *r_h = (float *)malloc(GRID_SIZE * sizeof(float));
      /*
      Defining device variables:
@@ -238,9 +238,8 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
      //float beta = 0.0001;
      // We are going to try some stuff for temp from this adaptive simulated annealing paper
      // https://arxiv.org/pdf/cs/0001018.pdf
-     float T_start = 999999999;
      float new_loss_h = 0;
-     float a = T; 
+     float a = T_start; 
      float f;
      float iter = 1.0;
      
@@ -252,7 +251,9 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
              // pick first city to swap
              city_swap_one_h[m] = rand_interval(1, N-2);
              // f defines how far the second city can be from the first
-             f = exp(-a / T);
+             // This sort of gives us a nice slope
+             //http://www.wolframalpha.com/input/?i=e%5E(-+sqrt(sqrt((9999%2Ft+-1))))+from+9999+to+0
+             f = exp(-sqrt(log(a / T)));
              j = (unsigned int)floor(1 + city_swap_one_h[m] * f); 
              // pick second city to swap
              city_swap_two_h[m] = (city_swap_one_h[m] + j) % N;
@@ -313,12 +314,13 @@ __global__ static void tsp(unsigned int* __restrict__ city_one,
                     // set old loss function to new
                     original_loss = new_loss_h;
                     //decrease temp
-                    T = T_start /log(iter);
+                    T = T_start /iter;
                     iter += 1.0f;
-                    //if (T < 300){
+                    if ((int)iter % 100 == 0){
                       printf(" Current Temperature is %.6f \n", T);
                       printf("\n Current Loss is: %.6f \n", original_loss);
-                    //}
+                      printf("\n Current Iteration is: %.6f \n", iter);
+                    }
                     /*
                     printf("Best found trip so far\n");
                     for (j = 0; j < N; j++){
