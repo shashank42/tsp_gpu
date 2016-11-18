@@ -54,41 +54,41 @@ void read_tsp(const char *tsp_file_name){
     tsp_file = fopen(tsp_file_name, "r");
     if (tsp_file == NULL)
         exit(EXIT_FAILURE);
-    fscanf(tsp_file,"%s", buf);
+    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at first line\n");
     while ( strcmp("NODE_COORD_SECTION", buf) != 0 ) {
     //printf("%s \n",buf);
 	if ( strcmp("NAME", buf) == 0 ) {
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Name\n");
 	    // TRACE ( printf("%s ", buf); )
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Name\n");
 	    strcpy(name, buf);
 	    meta -> name = strdup(name);
 	    //printf("%s \n",meta->name);
 	    buf[0]=0;
 	}
 	else if ( strcmp("NAME:", buf) == 0 ) {
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Name:\n");
 	    strcpy(name, buf);
 	    meta -> name = strdup(name);
 	    //printf("%s \n",meta->name);
 	    buf[0]=0;
 	}
 	else if ( strcmp("COMMENT", buf) == 0 ){
-	    fgets(buf, LINE_BUF_LEN, tsp_file);
+	    if(!fgets(buf, LINE_BUF_LEN, tsp_file)) printf("Reading failed at Comment\n");
 	    strcpy(comment, buf);
 	    meta -> comment = strdup(comment);
 	    buf[0]=0;
 	}
 	else if ( strcmp("COMMENT:", buf) == 0 ){
-	    fgets(buf, LINE_BUF_LEN, tsp_file);
+	    if(!fgets(buf, LINE_BUF_LEN, tsp_file)) printf("Reading failed at Comment:\n");
         strcpy(comment, buf);
 	    meta -> comment = strdup(comment);
 	    buf[0]=0;
 	}
 	else if ( strcmp("TYPE", buf) == 0 ) {
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Type\n");
 	    // TRACE ( printf("%s ", buf); )
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Type\n");
 	    // TRACE ( printf("%s\n", buf); )
 	    if( strcmp("TSP", buf) != 0 ) {
 		fprintf(stderr,"\n Not a TSP instance in TSPLIB format !!\n");
@@ -97,7 +97,7 @@ void read_tsp(const char *tsp_file_name){
 	    buf[0]=0;
 	}
 	else if ( strcmp("TYPE:", buf) == 0 ) {
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Name:\n");
 	    // TRACE ( printf("%s\n", buf); )
 	    if( strcmp("TSP", buf) != 0 ) {
 		fprintf(stderr,"\n Not a TSP instance in TSPLIB format !!\n");
@@ -106,47 +106,48 @@ void read_tsp(const char *tsp_file_name){
 	    buf[0]=0;
 	}
 	else if( strcmp("DIMENSION", buf) == 0 ){
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Dim\n");
 	    strcpy(dim, buf);
 	    meta -> dim = atoi(strdup(dim));
 	    buf[0]=0;
 	}
 	else if ( strcmp("DIMENSION:", buf) == 0 ) {
-	    fscanf(tsp_file, "%s", buf);
+	    if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at Dim:\n");
 	    strcpy(dim, buf);
 	    meta -> dim = atoi(strdup(dim));
 	    buf[0]=0;
 	}
 	else if( strcmp("DISPLAY_DATA_TYPE", buf) == 0 ){
-	    fgets(buf, LINE_BUF_LEN, tsp_file);
+	    if(!fgets(buf, LINE_BUF_LEN, tsp_file)) printf("Reading failed at Display Data Type\n");
 	    // TRACE ( printf("%s", buf); );
 	    buf[0]=0;
 	}
 	else if ( strcmp("DISPLAY_DATA_TYPE:", buf) == 0 ) {
-	    fgets(buf, LINE_BUF_LEN, tsp_file);
+	    if(!fgets(buf, LINE_BUF_LEN, tsp_file)) printf("Reading failed at Display Data Type\n");
 	    // TRACE ( printf("%s", buf); );
 	    buf[0]=0;
 	}
 	else if( strcmp("EDGE_WEIGHT_TYPE:", buf) == 0 ){
-	    fgets(buf, LINE_BUF_LEN, tsp_file);
+	    if(!fgets(buf, LINE_BUF_LEN, tsp_file)) printf("Reading failed at Edge Weight Type\n");
 	    strcpy(EDGE_WEIGHT_TYPE, buf);
 	    meta -> edge_type = strdup(EDGE_WEIGHT_TYPE);
 	    buf[0]=0;
 	}
 	buf[0]=0;
-	fscanf(tsp_file,"%s", buf);
+	if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed during read\n");
     }
     printf("edge_type: %s", meta->edge_type);
     printf("Dimension: %d \n",meta-> dim);
     if( strcmp("NODE_COORD_SECTION", buf) == 0 ){
 	printf("found section contaning the node coordinates\n");
-	fscanf(tsp_file,"%s", buf); 
+	if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed after finding nodes\n");
 	}
 
     //Set the location structs size.
     location = (coordinates *)malloc(meta->dim * sizeof(coordinates));
     for (int i = 0 ; i < meta->dim ; i++ ) {
-	    fscanf(tsp_file,"%d %f %f", &location[i].id, &location[i].x, &location[i].y);
+	    if(fscanf(tsp_file,"%d %f %f", &location[i].id, &location[i].x, &location[i].y) <=0)
+	      printf("Reading failed while scanning coordinates\n");
     }
     fclose(tsp_file);
 }
