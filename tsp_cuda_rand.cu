@@ -7,10 +7,11 @@
 #include <limits.h>
 #include <assert.h>
 #include <unistd.h>
-#include "utils.h"
-#include "tsp_solve.h"
 #include <iostream>
 #include <fstream>
+#include "utils.h"
+#include "tsp_solve.h"
+#include "gen_city.h"
 
 #define t_num 1024
 #define GRID_SIZE 1024
@@ -62,6 +63,8 @@
 *  - The host/device current loss function
 * new_loss_h/g: [integer(t_num)]
 *  - The host/device memory for the proposal loss function
+* d_state [struct curandState(1)]
+*  - The beginning state of the random number generation
 * 
 *****************************************************************************/
  int main(){
@@ -72,14 +75,15 @@
      read_tsp(tsp_name);
      unsigned int N = meta -> dim, *N_g;     
      // start counters for cities
-     unsigned int i, j, m;
+     unsigned int i;
      unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
      float original_loss = 0;
      float starting_loss = original_loss;
-     float T = 9,T_start = 9, *T_g, *r_g;
+     // SET TEMP HERE
+     float T_start = 5, *T_g, *T_start_g, *r_g;
+     float T = T_start;
      float *r_h = (float *)malloc(GRID_SIZE * sizeof(float));
      float new_loss_h = 0;
-     float swap_distance;
      float iter = 1.0;
      unsigned int *city_swap_one_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
      unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
@@ -87,6 +91,7 @@
      unsigned int *city_swap_one_g, *city_swap_two_g, *salesman_route_g, *flag_g;
      unsigned int global_flag_h = 0, *global_flag_g;
      coordinates *location_g;
+     curandState_t* states;
      // Create space on the device for each var
      cudaError_t err = cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
      //printf("\n Cuda malloc city swap one: %s \n", cudaGetErrorString(err));
@@ -98,9 +103,19 @@
      cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
      cudaMalloc((void**)&global_flag_g, sizeof(unsigned int));
      cudaMalloc((void**)&N_g, sizeof(unsigned int));
+     cudaMalloc((void**)&T_start_g, sizeof(float));
+     // Make space for the state of the RNG
+     cudaMalloc((void**) &states, N * sizeof(curandState_t));
      // Copy the city locations to device as well as the number of cities
      cudaMemcpy(location_g, location, N * sizeof(coordinates), cudaMemcpyHostToDevice);
      cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
+     cudaMemcpy(T_start_g, &T_start, sizeof(float), cudaMemcpyHostToDevice);
+     
+
+     
+     // Set up the RNG
+    
+     
 
      // just make one inital guess route, a simple linear path
      for (i = 0; i <= N; i++)
@@ -122,101 +137,74 @@
      printf("Number of cities: %d \n", N); 
      //Best for 100,000: The starting loss was 33,346,203,648 and the final loss was 10,243,860,480 
      while (T > 1){
+         cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
          // Init parameters
-         global_flag_h = 0;
-         for(m = 0; m < GRID_SIZE; m++){
-             // pick first city to swap
-             // Notice that we travel along N + 1 cities, but only select between 0 and N
-             // Since the first and last stop have to be the same we only look 0
-             city_swap_one_h[m] = rand_interval(0, N-2);
-             /* swap_distance defines how far the second city can be from the first
-                 This sort of gives us a nice slope
-                 http://www.wolframalpha.com/input/?i=e%5E(-+sqrt(ln(9999%2Ft))))+from+9999+to+0
-             */
-             swap_distance = exp(-sqrt(log(T_start / T)));
-             j = (unsigned int)floor(1 + city_swap_one_h[m] * swap_distance); 
-             // pick second city to swap
-             city_swap_two_h[m] = (city_swap_one_h[m] + j) % (N-1);
-             // Check we are not at the first or last city for city two
-             if (city_swap_two_h[m] == 0)
-               city_swap_two_h[m] += 1;
-             if (city_swap_two_h[m] == N - 1)
-               city_swap_two_h[m] -= 1;
-             r_h[m] = (float)rand() / (float)RAND_MAX ;
-             
-             //set our flags and new loss to 0
-             flag_h[m] = 0;
-             //printf("Iteration: %d \n City one is: %d and city Two is: %d \n",m, city_swap_one_h[m], city_swap_two_h[m]);
-          }
+         init<<<GRID_SIZE, 1>>>(time(0), states);
 
-          // Copy memory from host to device
-          err = cudaMemcpy(city_swap_one_g, city_swap_one_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
-          //printf("\n Cuda mem copy city swap one: %s \n", cudaGetErrorString(err));
-          cudaMemcpy(city_swap_two_g, city_swap_two_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(float), cudaMemcpyHostToDevice);
-          cudaMemcpy(flag_g, flag_h, GRID_SIZE* sizeof(unsigned int), cudaMemcpyHostToDevice);
-          cudaMemcpy(global_flag_g, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
- 
-          // Number of thread blocks in grid
-          dim3 blocksPerGrid(GRID_SIZE/t_num,1,1);
-          dim3 threadsPerBlock(t_num,1,1);
+        
+        
+         // Number of thread blocks in grid
+         dim3 blocksPerGrid(GRID_SIZE/t_num,1,1);
+         dim3 threadsPerBlock(t_num,1,1);
     
-          tsp<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                         location_g, salesman_route_g,
-                                                         T_g, r_g, flag_g, global_flag_g,
-                                                         N_g);
+         genCity<<<GRID_SIZE, 1>>>(states, city_swap_one_g,city_swap_two_g, N_g,
+                            T_start_g, T_g, flag_g, global_flag_g, r_g);
+         cudaThreadSynchronize();        
+         //cudaMemcpy(city_swap_two_h, city_swap_two_g, GRID_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+         //for (int k = 0; k < GRID_SIZE; k++)
+         //  printf("city two is: %d \n", city_swap_two_h[k]);        
+         tsp<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+                                                    location_g, salesman_route_g,
+                                                    T_g, r_g, flag_g, global_flag_g,
+                                                    N_g);
 
-          cudaThreadSynchronize();
-          cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-          if (global_flag_h != 0){          
-            cudaMemcpy(flag_h, flag_g, GRID_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost);
-            /* 
-            Here we check for a success
-              The first proposal trip accepted becomes the new starting trip 
-            */
-            for (i = 0; i < GRID_SIZE; i++){
-                if (flag_h[i] == 0){
-                //printf("Original Loss: %.6f \n", original_loss);
-                //printf("Proposed Loss: %.6f \n", new_loss_h[i]);
-                    continue;
-                } else {
-                    // switch the two cities that led to an accepted proposal
-                    unsigned int tmp = salesman_route[city_swap_one_h[i]];
-                    salesman_route[city_swap_one_h[i]] = salesman_route[city_swap_two_h[i]];
-                    salesman_route[city_swap_two_h[i]] = tmp;
-                    if (tmp == 0)
-                      salesman_route[N] = tmp;
-                      
-                    new_loss_h = 0;
-                    for (i = 0; i < N - 1; i++){
-                      new_loss_h += (location[salesman_route[i]].x - location[salesman_route[i+1]].x) *
-                                    (location[salesman_route[i]].x - location[salesman_route[i+1]].x) +
-                                    (location[salesman_route[i]].y - location[salesman_route[i+1]].y) *
-                                    (location[salesman_route[i]].y - location[salesman_route[i+1]].y);
-                    }
+         cudaThreadSynchronize();
+         cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+         if (global_flag_h != 0){          
+          cudaMemcpy(flag_h, flag_g, GRID_SIZE * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+          /* 
+           Here we check for a success
+            The first proposal trip accepted becomes the new starting trip 
+          */
+           for (i = 0; i < GRID_SIZE; i++){
+             if (flag_h[i] == 0){
+               //printf("Original Loss: %.6f \n", original_loss);
+               //printf("Proposed Loss: %.6f \n", new_loss_h[i]);
+               continue;
+             } else {
+               // switch the two cities that led to an accepted proposal
+                 unsigned int tmp = salesman_route[city_swap_one_h[i]];
+                 salesman_route[city_swap_one_h[i]] = salesman_route[city_swap_two_h[i]];
+                 salesman_route[city_swap_two_h[i]] = tmp;
+                 if (tmp == 0)
+                 salesman_route[N] = tmp;
+                 new_loss_h = 0;
+                 for (i = 0; i < N - 1; i++){
+                   new_loss_h += (location[salesman_route[i]].x - location[salesman_route[i+1]].x) *
+                                 (location[salesman_route[i]].x - location[salesman_route[i+1]].x) +
+                                 (location[salesman_route[i]].y - location[salesman_route[i+1]].y) *
+                                 (location[salesman_route[i]].y - location[salesman_route[i+1]].y);
+                 }
 
-                    // set old loss function to new
-                    original_loss = new_loss_h;
-                    //decrease temp
-
+                 // set old loss function to new
+                 original_loss = new_loss_h;
+                 //decrease temp
                     /*
                     printf("Best found trip so far\n");
                     for (j = 0; j < N; j++){
                        printf("%d ", salesman_route[j]);
                     }
                     */
-                    break;
-                }
-            }
-          }
+               break;
+             }
+           }
+         }
      
-     if ((int)iter % 500 == 0){
+     //if ((int)iter % 1000 == 0){
          printf(" Current Temperature is %.6f \n", T);
          printf("\n Current Loss is: %.6f \n", original_loss);
          printf("\n Current Iteration is: %.6f \n", iter);
-     }
+     //}
      //T = 1;
      T = T_start /log(iter);
      iter += 1.0f;
@@ -235,6 +223,7 @@
      cudaFree(r_g);
      cudaFree(flag_g);
      cudaFree(N_g);
+     cudaFree(T_start_g);
      free(salesman_route);
      free(city_swap_one_h);
      free(city_swap_two_h);
@@ -244,4 +233,7 @@
      return 0;
 }
              
+         
+         
+         
 
