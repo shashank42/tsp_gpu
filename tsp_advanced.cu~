@@ -67,7 +67,7 @@ int main(){
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // FIXME: Changing this to > 5000 causes an error
-    float T_start = 50000.0f, T = T_start, *T_g;
+    float T_start = 20000.0f, T = T_start, *T_g;
     unsigned int *r_g;
     unsigned int *r_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
     float iter = 1.00f;
