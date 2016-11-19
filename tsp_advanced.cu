@@ -67,7 +67,7 @@ int main(){
     printf("Original Loss is: %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // FIXME: Changing this to > 5000 causes an error
-    float T = 5000, *T_g;
+    float T = 2000.0f, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     for (i = 0; i<GRID_SIZE; i++)
@@ -140,20 +140,25 @@ int main(){
     dim3 blocksPerGrid(GRID_SIZE / t_num, 1, 1);
     dim3 threadsPerBlock(t_num, 1, 1);
 
-    //FIXME: Setting this to less than 1000 causes an error
-    while (T > 1000){
+    //FIXME: Setting this to less than 900 causes an error
+    while (T > 1000.0f){
         // Init parameters
         global_flag_h = 0;
         // Copy memory from host to device
         cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
+        cudaError_t e = cudaGetLastError();                                 \
+            if(e!=cudaSuccess) {
+              printf(" Temperature was %.6f on failure\n", T);
+            }
         cudaCheckError();
         tsp << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
                                                        location_g, salesman_route_g,
                                                        T_g, r_g, global_flag_g, N_g);
+        cudaCheckError();
 
         cudaThreadSynchronize();
         //cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        T = T*0.9999;
+        T = T*0.9999f;
         //T = 1;
         //printf("%d\n",global_flag_h);
     }
