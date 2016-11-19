@@ -66,7 +66,6 @@ int main(){
     }
     printf("Original Loss is: %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
-    // FIXME: Changing this to > 5000 causes an error
     float T = 5000, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
@@ -140,7 +139,6 @@ int main(){
     dim3 blocksPerGrid(GRID_SIZE / t_num, 1, 1);
     dim3 threadsPerBlock(t_num, 1, 1);
 
-    //FIXME: Setting this to less than 1000 causes an error
     while (T > 1000){
         // Init parameters
         global_flag_h = 0;

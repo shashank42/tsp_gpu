@@ -5,6 +5,18 @@
  
 #define LINE_BUF_LEN 100
 
+/********************************************************
+* Function to check for cuda error
+*  Run this on the host after performing a cuda operation.
+*****************************************************/
+#define cudaCheckError() {                                          \
+ cudaError_t e=cudaGetLastError();                                 \
+ if(e!=cudaSuccess) {                                              \
+   printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e));\
+   exit(0); \
+ }                                                                 \
+}
+
 /*****************************
 * Desc: structs for coordinates and tsp meta data
 * 
