@@ -69,8 +69,7 @@ int main(){
     }
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
-    // FIXME: Changing the temperature to large numbers can cause an error
-    float T_start = 25.0f, T = T_start, *T_g;
+    float T_start = 20.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     float iter = 1.00f;
@@ -152,7 +151,7 @@ int main(){
     cudaMalloc((void**) &states, GRID_SIZE * sizeof(curandState_t));
     init<<<blocksPerGrid, threadsPerBlock,0>>>(time(0), states);
     
-    //FIXME: Setting low causes an error
+    
     while (T > 1.0f){
         // Init parameters
         global_flag_h = 0;
@@ -193,7 +192,7 @@ int main(){
     
     // Write the best trip to CSV
     FILE *best_trip;
-    const char *filename="dsj1000_best_trip.csv";
+    const char *filename="mona_lisa_best_trip.csv";
     best_trip = fopen(filename,"w+");
     fprintf(best_trip, "location, coordinate_x, coordinate_y \n");
     for (i = 0; i < N + 1; i++){
