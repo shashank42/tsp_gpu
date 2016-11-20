@@ -194,20 +194,21 @@ __global__ static void tspLoss(unsigned int* city_one,
         if (global_flag[0] != 0){
             tmp = salesman_route[city_one[global_flag[0]]];
             salesman_route[city_one[global_flag[0]]] = salesman_route[city_two[global_flag[0]]];
-            salesman_route[city_two[global_flag[0]]] = tmp;
             if (city_one[global_flag[0]] == 0)
-                salesman_route[N[0]] = tmp;
-                
+                salesman_route[N[0]] = salesman_route[city_two[global_flag[0]]];
+            salesman_route[city_two[global_flag[0]]] = tmp;               
             global_flag[0] = 0;
         }
     }
     __syncthreads();
-
+    int iter = 0;
+    // Wait till global flag is zero and we do 10000 iterations
+    while (global_flag[0] == 0 && iter < 10000){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-    // FIXME: Note sure if the max number here is the right place. But it breaks if we have (N[0] - 1)
+    // FIXME: This isn't hitting 99,9999???
     float myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0] - 2) - 0.0+0.999999);
+    myrandf *= ((float)(N[0]) - 0.0+0.9999999999999999);
     myrandf += 0.0;
     int city_one_swap = (int)truncf(myrandf);
 
@@ -215,15 +216,24 @@ __global__ static void tspLoss(unsigned int* city_one,
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(-1 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
-    int min_city_two = (city_one_swap - sample_space > 0)?city_one_swap - sample_space:1;
-    // FIXME: Same thing here, I think this should be N[0] - 1
-    int max_city_two = (city_one_swap + sample_space < N[0] - 2)? city_one_swap + sample_space:(N[0] - 2);
+    int min_city_two = (city_one_swap - sample_space > 0)?
+        city_one_swap - sample_space:
+           1;
+           
+    int max_city_two = (city_one_swap + sample_space < N[0])?
+        city_one_swap + sample_space:
+            (N[0] - 1);
     myrandf = curand_uniform(&states[tid]); 
-    myrandf *= ((float)max_city_two - (float)min_city_two+0.999999);
+    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
     int city_two_swap = (int)truncf(myrandf);         
 
-
+    // This shouldn't have to be here, but if either is larger or equal to N
+    // We set it to N[0] - 1
+    if (city_one_swap >= N[0])
+        city_one_swap = (N[0] - 1);
+    if (city_two_swap >= N[0])
+        city_two_swap = (N[0] - 1);
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
@@ -285,11 +295,7 @@ __global__ static void tspLoss(unsigned int* city_one,
       unsigned int trip_city_one_start  = salesman_route[1]; 
       unsigned int trip_city_one_end    = salesman_route[(N[0]-1)];
       
-      
-      // We will always have 4 calculations for original distance and the proposed distance
-      // so we just unroll the loop here
-      // TODO: It may be nice to make vars for the locations as well so this does not look so gross
-      // The first city, unswapped. The one behind it and the one in front of it
+
       original_dist += (location[trip_city_one_start].x - location[trip_city_one].x) *
                        (location[trip_city_one_start].x - location[trip_city_one].x) +
                        (location[trip_city_one_start].y - location[trip_city_one].y) *
@@ -338,7 +344,10 @@ __global__ static void tspLoss(unsigned int* city_one,
         myrandf = curand_uniform(&states[tid]); 
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
+            __syncthreads();
         }
+    }
+    iter++;
     } 
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
 }

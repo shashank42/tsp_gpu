@@ -31,7 +31,7 @@ nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_advanced.cu -o tsp_cuda -
 
 int main(){
 
-    const char *tsp_name = "dsj1000.tsp";
+    const char *tsp_name = "mona-lisa100K.tsp";
      read_tsp(tsp_name);
     unsigned int N = meta -> dim, *N_g;  
     // start counters for cities
@@ -69,7 +69,7 @@ int main(){
     }
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
-    float T_start = 20.0f, T = T_start, *T_g;
+    float T_start = 30.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     float iter = 1.00f;
@@ -107,11 +107,9 @@ int main(){
     cudaCheckError();
     cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
     cudaCheckError();
-    cudaMalloc((void**)&salesman_route_g, (N + 1) * sizeof(unsigned int));
-    cudaCheckError();
     cudaMalloc((void**)&location_g, N * sizeof(coordinates));
     cudaCheckError();
-    cudaMalloc((void**)&salesman_route_g, N * sizeof(unsigned int));
+    cudaMalloc((void**)&salesman_route_g, (N + 1) * sizeof(unsigned int));
     cudaCheckError();
     cudaMalloc((void**)&T_g, sizeof(float));
     cudaCheckError();
@@ -127,7 +125,7 @@ int main(){
 
     cudaMemcpy(location_g, location, N * sizeof(coordinates), cudaMemcpyHostToDevice);
     cudaCheckError();
-    cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(unsigned int), cudaMemcpyHostToDevice);
+    cudaMemcpy(salesman_route_g, salesman_route,  (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
     //cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(int), cudaMemcpyHostToDevice);
     cudaCheckError();
@@ -153,8 +151,7 @@ int main(){
     
     
     while (T > 1.0f){
-        // Init parameters
-        global_flag_h = 0;
+
         // Copy memory from host to device
         cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
         cudaError_t e = cudaGetLastError();                                 \
@@ -173,13 +170,13 @@ int main(){
         //cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         iter += 1.00f;
         T = T_start/log(iter);
-        if ((int)iter % 50000 == 0) printf("Iter: %d  Temperature is %.6f\n",(int)iter, T);
-        //T = T_start/log(iter);
+        if ((long int)iter % 50000 == 0)
+         printf("Iter: %ld  Temperature is %.6f\n",(long int)iter, T);
         //T = 1;
         //printf("%d\n",global_flag_h);
     }
 
-    cudaMemcpy(salesman_route, salesman_route_g, N * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     cudaCheckError();
     float optimized_loss = 0;
     for (i = 0; i < N; i++){
