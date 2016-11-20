@@ -23,7 +23,8 @@ Some compliation options that can speed things up
 --optimize=5
 --gpu-architecture=compute_35
 I use something like
-nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_cuda.cu -o tsp_cuda
+NOTE: You need to use the -lcurand flag to compile.
+nvcc --optimize=0 -arch=compute_35 tsp_advanced.cu -o tsp_cuda -lcurand
 */
 
 int main(){
@@ -37,14 +38,14 @@ int main(){
     coordinates *location_g;
     
 
-    unsigned int *salesman_route = (unsigned int *)malloc(N * sizeof(unsigned int));
+    unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
 
     // just make one inital guess route, a simple linear path
-    for (i = 0; i < N; i++)
+    for (i = 0; i <= N; i++)
         salesman_route[i] = i;
 
     // Set the starting and end points to be the same
-    salesman_route[N - 1] = salesman_route[0];
+    salesman_route[N] = salesman_route[0];
 
     /*     don't need it when importing data from files
     // initialize the coordinates and sequence
@@ -58,7 +59,7 @@ int main(){
 
     // Calculate the original loss
     float original_loss = 0;
-    for (i = 0; i < N - 1; i++){
+    for (i = 0; i < N; i++){
         original_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
             (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
             (location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
@@ -66,11 +67,12 @@ int main(){
     }
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
-    // FIXME: Changing this to > 5000 causes an error
-    float T_start = 50000.0f, T = T_start, *T_g;
-    unsigned int *r_g;
-    unsigned int *r_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
+    // FIXME: Changing the temperature to large numbers can cause an error
+    float T_start = 10000.0f, T = T_start, *T_g;
+    int *r_g;
+    int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     float iter = 1.00f;
+    srand(1234);
     for (i = 0; i<GRID_SIZE; i++)
     {
         r_h[i] = rand();
@@ -104,7 +106,7 @@ int main(){
     cudaCheckError();
     cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
     cudaCheckError();
-    cudaMalloc((void**)&salesman_route_g, N * sizeof(unsigned int));
+    cudaMalloc((void**)&salesman_route_g, (N + 1) * sizeof(unsigned int));
     cudaCheckError();
     cudaMalloc((void**)&location_g, N * sizeof(coordinates));
     cudaCheckError();
@@ -112,7 +114,7 @@ int main(){
     cudaCheckError();
     cudaMalloc((void**)&T_g, sizeof(float));
     cudaCheckError();
-    cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(unsigned int));
+    cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(int));
     cudaCheckError();
     cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
     cudaCheckError();
@@ -126,7 +128,7 @@ int main(){
     cudaCheckError();
     cudaMemcpy(salesman_route_g, salesman_route, N * sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
-    cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(unsigned int), cudaMemcpyHostToDevice);
+    //cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(int), cudaMemcpyHostToDevice);
     cudaCheckError();
     cudaMemcpy(global_flag_g, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
@@ -140,9 +142,16 @@ int main(){
     // Number of thread blocks in grid
     dim3 blocksPerGrid(GRID_SIZE / t_num, 1, 1);
     dim3 threadsPerBlock(t_num, 1, 1);
+    
+    // Trying out random gen in cuda
+    curandState_t* states;
 
-    //FIXME: Setting this to less than 900 causes an error
-    while (T > 1000.0f){
+    /* allocate space on the GPU for the random states */
+    cudaMalloc((void**) &states, GRID_SIZE * sizeof(curandState_t));
+    init<<<blocksPerGrid, threadsPerBlock,0>>>(time(0), states);
+    
+    //FIXME: Setting low causes an error
+    while (T > 1.0f){
         // Init parameters
         global_flag_h = 0;
         // Copy memory from host to device
@@ -152,12 +161,14 @@ int main(){
               printf(" Temperature was %.6f on failure\n", T);
             }
         cudaCheckError();
-        tsp << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+        tspLoss<<<blocksPerGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                        location_g, salesman_route_g,
-                                                       T_g, r_g, global_flag_g, N_g);
+                                                       T_g, global_flag_g, N_g,
+                                                       states);
         cudaCheckError();
 
         cudaThreadSynchronize();
+        cudaCheckError();
         //cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         //iter += 1.00f;
         T = T*0.9999f;
@@ -169,7 +180,7 @@ int main(){
     cudaMemcpy(salesman_route, salesman_route_g, N * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     cudaCheckError();
     float optimized_loss = 0;
-    for (i = 0; i < N - 1; i++){
+    for (i = 0; i < N; i++){
         optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
             (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
             (location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
