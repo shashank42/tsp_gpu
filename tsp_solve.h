@@ -201,7 +201,7 @@ __global__ static void tspLoss(unsigned int* city_one,
     __syncthreads();
     int iter = 0;
     // Wait till global flag is zero and we do 10000 iterations
-    while (global_flag[0] == 0 && iter < 10000){
+    while (global_flag[0] == 0 && iter < 100){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     // FIXME: This isn't hitting 99,9999???
@@ -211,6 +211,7 @@ __global__ static void tspLoss(unsigned int* city_one,
     int city_one_swap = (int)truncf(myrandf);
 
 
+    /*
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(-1 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
@@ -225,13 +226,20 @@ __global__ static void tspLoss(unsigned int* city_one,
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
     int city_two_swap = (int)truncf(myrandf);
+    */
+    myrandf = curand_uniform(&states[tid]);
+    myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
+    myrandf += 1.0;
+    int city_two_swap = (int)truncf(myrandf);
 
+    
     // This shouldn't have to be here, but if either is larger or equal to N
-    // We set it to N[0] - 1
+    /* We set it to N[0] - 1
     if (city_one_swap >= N[0])
         city_one_swap = (N[0] - 1);
     if (city_two_swap >= N[0])
         city_two_swap = (N[0] - 1);
+    */
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
