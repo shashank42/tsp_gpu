@@ -65,8 +65,6 @@ __global__ static void tsp(unsigned int* city_one,
 
     if (city_two_swap == 0)
         city_two_swap += 1;
-    if (city_two_swap == N[0] - 1)
-        city_two_swap -= 1;
 
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
