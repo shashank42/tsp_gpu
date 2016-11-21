@@ -54,8 +54,6 @@ __global__ static void tsp(unsigned int* city_one,
     int city_one_swap = (int)floor((float)r_r / 2147483647 * N[0]);
     if (city_one_swap == 0)
         city_one_swap += 1;
-    if (city_one_swap == N[0] - 1)
-        city_one_swap -= 1;
 
     r_r = a_r*(r_r%q_r) - z_r*(r_r / q_r);
     if (r_r < 0)
@@ -64,7 +62,7 @@ __global__ static void tsp(unsigned int* city_one,
     int city_two_swap = ((int)(city_one_swap +
                   (int)floor(((float)r_r / 2147483647 * 2 - 1) *
                   N[0]*exp(-1 / T[0]))) + N[0]) % N[0];
-                  
+
     if (city_two_swap == 0)
         city_two_swap += 1;
     if (city_two_swap == N[0] - 1)
@@ -138,7 +136,7 @@ __global__ static void tsp(unsigned int* city_one,
         if (p > (float)r_r/2147483547&&global_flag[0]<tid){
             global_flag[0] = tid;
         }
-    } 
+    }
     seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
 
@@ -155,9 +153,9 @@ __global__ void init(unsigned int seed, curandState_t* states) {
   /* the sequence number should be different for each core (unless you want all
      cores to get the same sequence of numbers for some reason - use thread id! */
    /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-  curand_init(seed, 
-              blockIdx.x * blockDim.x + threadIdx.x, 
-              0, 
+  curand_init(seed,
+              blockIdx.x * blockDim.x + threadIdx.x,
+              0,
               &states[blockIdx.x * blockDim.x + threadIdx.x]);
 }
 
@@ -196,7 +194,7 @@ __global__ static void tspLoss(unsigned int* city_one,
             salesman_route[city_one[global_flag[0]]] = salesman_route[city_two[global_flag[0]]];
             if (city_one[global_flag[0]] == 0)
                 salesman_route[N[0]] = salesman_route[city_two[global_flag[0]]];
-            salesman_route[city_two[global_flag[0]]] = tmp;               
+            salesman_route[city_two[global_flag[0]]] = tmp;
             global_flag[0] = 0;
         }
     }
@@ -219,14 +217,14 @@ __global__ static void tspLoss(unsigned int* city_one,
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
            1;
-           
+
     int max_city_two = (city_one_swap + sample_space < N[0])?
         city_one_swap + sample_space:
             (N[0] - 1);
-    myrandf = curand_uniform(&states[tid]); 
+    myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
-    int city_two_swap = (int)truncf(myrandf);         
+    int city_two_swap = (int)truncf(myrandf);
 
     // This shouldn't have to be here, but if either is larger or equal to N
     // We set it to N[0] - 1
@@ -240,17 +238,17 @@ __global__ static void tspLoss(unsigned int* city_one,
     float delta, p;
     unsigned int trip_city_one = salesman_route[city_one_swap];
 
-    // NOTE: We set city two so that it could not be equal to 0 or N        
+    // NOTE: We set city two so that it could not be equal to 0 or N
     unsigned int trip_city_two      = salesman_route[city_two_swap];
     unsigned int trip_city_two_pre  = salesman_route[city_two_swap - 1];
     unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
     float original_dist = 0;
     float proposal_dist = 0;
-    // We need to account for if city swap one is equal to 0 
+    // We need to account for if city swap one is equal to 0
     if (city_one_swap != 0){
       unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
       unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
-   
+
       // We will always have 4 calculations for original distance and the proposed distance
       // so we just unroll the loop here
       // TODO: It may be nice to make vars for the locations as well so this does not look so gross
@@ -292,9 +290,9 @@ __global__ static void tspLoss(unsigned int* city_one,
                        (location[trip_city_one_post].y - location[trip_city_two].y);
     } else {
     // Now if zero is select we check the distance of the starting point and end point
-      unsigned int trip_city_one_start  = salesman_route[1]; 
+      unsigned int trip_city_one_start  = salesman_route[1];
       unsigned int trip_city_one_end    = salesman_route[(N[0]-1)];
-      
+
 
       original_dist += (location[trip_city_one_start].x - location[trip_city_one].x) *
                        (location[trip_city_one_start].x - location[trip_city_one].x) +
@@ -341,15 +339,15 @@ __global__ static void tspLoss(unsigned int* city_one,
     } else {
         delta = proposal_dist - original_dist;
         p = exp(-delta / T[0]);
-        myrandf = curand_uniform(&states[tid]); 
+        myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
             __syncthreads();
         }
     }
     iter++;
-    } 
+    }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
-                           
+
 #endif // _TSP_SOLVE_H_
