@@ -171,13 +171,14 @@ int main(){
 
         cudaThreadSynchronize();
         cudaCheckError();
+        //cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         iter += 1.00f;
         T = T_start/log(iter);
         if ((long int)iter % 50000 == 0)
          printf("Iter: %ld  Temperature is %.6f\n",(long int)iter, T);
         //T = 1;
+        //printf("%d\n",global_flag_h);
     }
-    
 
     cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     cudaCheckError();
