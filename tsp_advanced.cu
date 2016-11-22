@@ -69,10 +69,11 @@ int main(){
     }
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
-    float T_start = 15.0f, T = T_start, *T_g;
+    // SET THE LOSS HERE
+    float T_start = 25.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
-    float iter = 1.00f;
+    double iter = 1.00f;
     srand(1234);
     for (i = 0; i<GRID_SIZE; i++)
     {

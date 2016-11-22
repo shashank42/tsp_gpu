@@ -232,12 +232,12 @@ __global__ static void tspLoss(unsigned int* city_one,
 
     
     // This shouldn't have to be here, but if either is larger or equal to N
-    /* We set it to N[0] - 1
+    // We set it to N[0] - 1
     if (city_one_swap >= N[0])
         city_one_swap = (N[0] - 1);
     if (city_two_swap >= N[0])
         city_two_swap = (N[0] - 1);
-    */
+    
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
