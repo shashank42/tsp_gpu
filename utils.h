@@ -152,7 +152,7 @@ void read_tsp(const char *tsp_file_name){
     printf("Dimension: %d \n",meta-> dim);
     if( strcmp("NODE_COORD_SECTION", buf) == 0 ){
 	printf("found section contaning the node coordinates\n");
-	if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed after finding nodes\n");
+	//if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed after finding nodes\n");
 	}
 
     //Set the location structs size.

@@ -31,7 +31,7 @@ nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_advanced.cu -o tsp_cuda -
 
 int main(){
 
-    const char *tsp_name = "mona-lisa100K.tsp";
+    const char *tsp_name = "ch130.tsp";
      read_tsp(tsp_name);
     unsigned int N = meta -> dim, *N_g;  
     // start counters for cities
@@ -39,7 +39,11 @@ int main(){
 
     coordinates *location_g;
     
-
+    /* For checking the coordinates
+     for (i = 0; i < N; i++)
+      printf("Location x: %0.6f, location y: %0.6f \n", location[i].x, location[i].y);
+     exit(0);
+    */
     unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
 
     // just make one inital guess route, a simple linear path
@@ -70,7 +74,7 @@ int main(){
     printf("Original Loss is:  %.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
-    float T_start = 25.0f, T = T_start, *T_g;
+    float T_start = 5.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
