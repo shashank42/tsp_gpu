@@ -176,17 +176,14 @@ Input:
 - The number of cities.
 */
 
-__global__ static void tspLoss(unsigned int* city_one,
-	                       unsigned int* city_two,
-	                       coordinates* __restrict__ location,
+__global__ static void tspSwapUpdate(unsigned int* __restrict__ city_one,
+	                       unsigned int* __restrict__ city_two,
 	                       unsigned int* __restrict__ salesman_route,
-	                       float* __restrict__ T,
-	                       volatile unsigned int *global_flag,
-	                       unsigned int* __restrict__ N,
-	                       curandState_t* states){
-    //first, refresh the routine, let thread 0 do it
+	                       volatile unsigned int *global_flag){
+ 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int tmp;
+    unsigned int tmp;	
+    // use thread 0 to refresh the route                       
     if (tid == 0){
         if (global_flag[0] != 0){
             tmp = salesman_route[city_one[global_flag[0]]];
@@ -196,6 +193,17 @@ __global__ static void tspLoss(unsigned int* city_one,
         }
     }
     __syncthreads();
+}
+__global__ static void tspSwap(unsigned int* city_one,
+	                       unsigned int* city_two,
+	                       coordinates* __restrict__ location,
+	                       unsigned int* __restrict__ salesman_route,
+	                       float* __restrict__ T,
+	                       volatile unsigned int *global_flag,
+	                       unsigned int* __restrict__ N,
+	                       curandState_t* states){
+    
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
     while (global_flag[0] == 0 && iter < 100){
@@ -450,21 +458,13 @@ __global__ static void tsp_2(unsigned int* city_one,
     seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
 
-//The inserting method
-__global__ static void tspInsertion(unsigned int* city_one,
-	                       unsigned int* city_two,
-	                       coordinates* __restrict__ location,
+__global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
+	                       unsigned int* __restrict__ city_two,
 	                       unsigned int* __restrict__ salesman_route,
-	                       float* __restrict__ T,
-	                       volatile unsigned int *global_flag,
-	                       unsigned int* __restrict__ N,
-	                       curandState_t* states){
-    //first, refresh the route, this time we have to change city_one-city_two elements
+	                       volatile unsigned int *global_flag){
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tmp;
     int indicator;
-    //indicator stands for the number of elements we have to shift
-    //it could be negative, has to be int
     if (global_flag[0] != 0){
         indicator=city_one[global_flag[0]]-city_two[global_flag[0]];
         if(indicator>0)
@@ -480,9 +480,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
                 {
                     tmp = salesman_route[city_two[global_flag[0]]+tid];
                 }
-                __syncthreads;
                 salesman_route[tid+city_two[global_flag[0]]+1]=tmp;
-                __syncthreads;
             }
         }
         if(indicator<0)
@@ -497,9 +495,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
                 {
                     tmp = salesman_route[city_two[global_flag[0]]-tid+2];
                 }
-                __syncthreads();
                 salesman_route[city_two[global_flag[0]]+1-tid]=tmp;
-                __syncthreads();
            }
         }
     }
@@ -508,6 +504,23 @@ __global__ static void tspInsertion(unsigned int* city_one,
         global_flag[0]=0;
     }
     __syncthreads();
+}
+
+//The inserting method
+__global__ static void tspInsertion(unsigned int* city_one,
+	                       unsigned int* city_two,
+	                       coordinates* __restrict__ location,
+	                       unsigned int* __restrict__ salesman_route,
+	                       float* __restrict__ T,
+	                       volatile unsigned int *global_flag,
+	                       unsigned int* __restrict__ N,
+	                       curandState_t* states){
+    //first, refresh the route, this time we have to change city_one-city_two elements
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    //indicator stands for the number of elements we have to shift
+    //it could be negative, has to be int
+   
 
       // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
@@ -520,15 +533,15 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
     
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0]);
+    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0] - 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
            1;
 
-    int max_city_two = (city_one_swap + sample_space < N[0])?
+    int max_city_two = (city_one_swap + sample_space < N[0] - 2)?
         city_one_swap + sample_space:
-            (N[0] - 1);
+            (N[0] - 32);
     myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
@@ -536,9 +549,9 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
     // This shouldn't have to be here, but if either is larger or equal to N
     // We set it to N[0] - 1
-    if (city_one_swap >= N[0])
+    if (city_one_swap >= N[0] - 2)
         city_one_swap = (N[0] - 2);
-    if (city_two_swap >= N[0])
+    if (city_two_swap >= N[0] - 2)
         city_two_swap = (N[0] - 2);
     // END NEW
     

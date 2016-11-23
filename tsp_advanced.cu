@@ -73,7 +73,7 @@ int main(){
     printf("Original Loss is:  %0.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
-    float T_start = 15.0f, T = T_start, *T_g;
+    float T_start = 16.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
@@ -163,16 +163,21 @@ int main(){
               printf(" Temperature was %.6f on failure\n", T);
             }
         cudaCheckError();
-        tspLoss<<<blocksPerGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-                                                       location_g, salesman_route_g,
-                                                       T_g, global_flag_g, N_g,
-                                                       states);
-                                                       
-        tspInsertion<<<blocksPerGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+        tspSwap<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
                                                        location_g, salesman_route_g,
                                                        T_g, global_flag_g, N_g,
                                                        states);
         cudaCheckError();
+        tspSwapUpdate<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+                                                             salesman_route_g, global_flag_g);
+        cudaCheckError();
+        tspInsertion<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+                                                       location_g, salesman_route_g,
+                                                       T_g, global_flag_g, N_g,
+                                                       states);
+        cudaCheckError();
+        tspInsertionUpdate<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
+                                                                  salesman_route_g,global_flag_g);
 
         cudaThreadSynchronize();
         cudaCheckError();
