@@ -365,15 +365,16 @@ __global__ static void tsp_2(unsigned int* city_one,
 	                       float* __restrict__ T,
 	                       int* __restrict__ seed,
 	                       volatile unsigned int *global_flag,
-	                       unsigned int* __restrict__ N){
+	                       unsigned int* __restrict__ N
+	                       ){
     //first, refresh the route, this time we have to change city_one-city_two elements
-    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int tid = threadIdx.x;
     unsigned int tmp;
     int indicator;
     //indicator stands for the number of elements we have to shift
     //it could be negative, has to be int
     if (global_flag[0] != 0){
-        indicator=salesman_route[city_one[global_flag[0]]]-salesman_route[city_two[global_flag[0]]];
+        indicator=city_one[global_flag[0]]-city_two[global_flag[0]];
         if(indicator>0)
         {
             if (tid<indicator)
@@ -383,6 +384,7 @@ __global__ static void tsp_2(unsigned int* city_one,
                     tmp = salesman_route[city_one[global_flag[0]]];
                 }
                 else
+
                 {
                     tmp = salesman_route[city_two[global_flag[0]]+tid];
                 }
@@ -391,9 +393,9 @@ __global__ static void tsp_2(unsigned int* city_one,
                 __syncthreads;
             }
         }
-        else
+        if(indicator<0)
         {
-           if (tid<1-indicator)
+           if (tid<2-indicator)
            {
                if(tid==0)
                 {
@@ -403,14 +405,16 @@ __global__ static void tsp_2(unsigned int* city_one,
                 {
                     tmp = salesman_route[city_two[global_flag[0]]-tid+2];
                 }
-                __syncthreads;
+                __syncthreads();
                 salesman_route[city_two[global_flag[0]]+1-tid]=tmp;
-                __syncthreads;
+                __syncthreads();
            }
         }
     }
     if(tid==0)
+    {
         global_flag[0]=0;
+    }
     __syncthreads();
 
     //second, we generate random number, get city_swap_index
@@ -434,7 +438,7 @@ __global__ static void tsp_2(unsigned int* city_one,
                   (int)floor(((float)r_r / 2147483647 * 2 - 1) *
                   N[0]*exp(-1 / T[0]))) + N[0]) % N[0];
 
-    if (city_two_swap !=N-1 || city_two_swap!=city_one_swap)
+    if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
     {
         city_one[tid] = city_one_swap;
         city_two[tid] = city_two_swap;
