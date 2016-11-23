@@ -430,7 +430,8 @@ __global__ static void tsp_2(unsigned int* city_one,
                          (location[trip_city_one_pre].x - location[trip_city_one_post].x) +
                          (location[trip_city_one_pre].y - location[trip_city_one_post].y) *
                          (location[trip_city_one_pre].y - location[trip_city_one_post].y);
-        //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
+        //picking the first accepted and picking the last accepted is equivalent
+        // here I pick the latter one
         //because if I pick the small one, I have to tell whether the flag is 0
         if (proposal_dist < original_dist&&global_flag[0]<tid){
             global_flag[0] = tid;
@@ -448,6 +449,159 @@ __global__ static void tsp_2(unsigned int* city_one,
     }
     seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
+
+//The inserting method
+__global__ static void tspInsertion(unsigned int* city_one,
+	                       unsigned int* city_two,
+	                       coordinates* __restrict__ location,
+	                       unsigned int* __restrict__ salesman_route,
+	                       float* __restrict__ T,
+	                       volatile unsigned int *global_flag,
+	                       unsigned int* __restrict__ N,
+	                       curandState_t* states){
+    //first, refresh the route, this time we have to change city_one-city_two elements
+    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int tmp;
+    int indicator;
+    //indicator stands for the number of elements we have to shift
+    //it could be negative, has to be int
+    if (global_flag[0] != 0){
+        indicator=city_one[global_flag[0]]-city_two[global_flag[0]];
+        if(indicator>0)
+        {
+            if (tid<indicator)
+            {
+                if(tid==0)
+                {
+                    tmp = salesman_route[city_one[global_flag[0]]];
+                }
+                else
+
+                {
+                    tmp = salesman_route[city_two[global_flag[0]]+tid];
+                }
+                __syncthreads;
+                salesman_route[tid+city_two[global_flag[0]]+1]=tmp;
+                __syncthreads;
+            }
+        }
+        if(indicator<0)
+        {
+           if (tid<2-indicator)
+           {
+               if(tid==0)
+                {
+                    tmp = salesman_route[city_one[global_flag[0]]];
+                }
+                else
+                {
+                    tmp = salesman_route[city_two[global_flag[0]]-tid+2];
+                }
+                __syncthreads();
+                salesman_route[city_two[global_flag[0]]+1-tid]=tmp;
+                __syncthreads();
+           }
+        }
+    }
+    if(tid==0)
+    {
+        global_flag[0]=0;
+    }
+    __syncthreads();
+
+      // Generate the first city
+    // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
+    // FIXME: This isn't hitting 99,9999???
+    float myrandf = curand_uniform(&states[tid]);
+    myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
+    myrandf += 1.0;
+    int city_one_swap = (int)truncf(myrandf);
+
+
+    
+    // This is the maximum we can sample from
+    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0]);
+    // We need to set the min and max of the second city swap
+    int min_city_two = (city_one_swap - sample_space > 0)?
+        city_one_swap - sample_space:
+           1;
+
+    int max_city_two = (city_one_swap + sample_space < N[0])?
+        city_one_swap + sample_space:
+            (N[0] - 1);
+    myrandf = curand_uniform(&states[tid]);
+    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
+    myrandf += min_city_two;
+    int city_two_swap = (int)truncf(myrandf);
+
+    // This shouldn't have to be here, but if either is larger or equal to N
+    // We set it to N[0] - 1
+    if (city_one_swap >= N[0])
+        city_one_swap = (N[0] - 2);
+    if (city_two_swap >= N[0])
+        city_two_swap = (N[0] - 2);
+    // END NEW
+    
+
+    if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
+    {
+        city_one[tid] = city_one_swap;
+        city_two[tid] = city_two_swap;
+
+        float delta, p;
+        unsigned int trip_city_one = salesman_route[city_one_swap];
+        unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
+        unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
+
+        unsigned int trip_city_two = salesman_route[city_two_swap];
+        unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
+        // The original and post distances
+        float original_dist = 0;
+        float proposal_dist = 0;
+
+        // this method changes three segments
+        original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
+                         (location[trip_city_one_pre].x - location[trip_city_one].x) +
+                         (location[trip_city_one_pre].y - location[trip_city_one].y) *
+                         (location[trip_city_one_pre].y - location[trip_city_one].y);
+        original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+                         (location[trip_city_one_post].x - location[trip_city_one].x) +
+                         (location[trip_city_one_post].y - location[trip_city_one].y) *
+                         (location[trip_city_one_post].y - location[trip_city_one].y);
+        original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+                         (location[trip_city_two_post].x - location[trip_city_two].x) +
+                         (location[trip_city_two_post].y - location[trip_city_two].y) *
+                         (location[trip_city_two_post].y - location[trip_city_two].y);
+
+        proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
+                         (location[trip_city_two].x - location[trip_city_one].x) +
+                         (location[trip_city_two].y - location[trip_city_one].y) *
+                         (location[trip_city_two].y - location[trip_city_one].y);
+        proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
+                         (location[trip_city_two_post].x - location[trip_city_one].x) +
+                         (location[trip_city_two_post].y - location[trip_city_one].y) *
+                         (location[trip_city_two_post].y - location[trip_city_one].y);
+        proposal_dist += (location[trip_city_one_pre].x - location[trip_city_one_post].x) *
+                         (location[trip_city_one_pre].x - location[trip_city_one_post].x) +
+                         (location[trip_city_one_pre].y - location[trip_city_one_post].y) *
+                         (location[trip_city_one_pre].y - location[trip_city_one_post].y);
+        //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
+        //because if I pick the small one, I have to tell whether the flag is 0
+     if (proposal_dist < original_dist&&global_flag[0]<tid){
+        global_flag[0] = tid;
+        __syncthreads();
+     } else {
+        delta = proposal_dist - original_dist;
+        p = exp(-delta / T[0]);
+        myrandf = curand_uniform(&states[tid]);
+        if (p > myrandf && global_flag[0]<tid){
+            global_flag[0] = tid;
+            __syncthreads();
+        }
+     }
+    }
+}
+
 
 
 #endif // _TSP_SOLVE_H_

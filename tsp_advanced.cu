@@ -167,6 +167,11 @@ int main(){
                                                        location_g, salesman_route_g,
                                                        T_g, global_flag_g, N_g,
                                                        states);
+                                                       
+        tspInsertion<<<blocksPerGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                                                       location_g, salesman_route_g,
+                                                       T_g, global_flag_g, N_g,
+                                                       states);
         cudaCheckError();
 
         cudaThreadSynchronize();
