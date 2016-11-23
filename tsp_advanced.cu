@@ -6,7 +6,6 @@
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
-#include <unistd.h>
 #include <iostream>
 #include <fstream>
 
@@ -71,10 +70,10 @@ int main(){
             (location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
             (location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
     }
-    printf("Original Loss is:  %.6f \n", original_loss);
+    printf("Original Loss is:  %0.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
-    float T_start = 5.0f, T = T_start, *T_g;
+    float T_start = 15.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
@@ -172,14 +171,13 @@ int main(){
 
         cudaThreadSynchronize();
         cudaCheckError();
-        //cudaMemcpy(&global_flag_h, global_flag_g, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         iter += 1.00f;
         T = T_start/log(iter);
         if ((long int)iter % 50000 == 0)
          printf("Iter: %ld  Temperature is %.6f\n",(long int)iter, T);
         //T = 1;
-        //printf("%d\n",global_flag_h);
     }
+    
 
     cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     cudaCheckError();

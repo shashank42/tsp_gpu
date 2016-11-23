@@ -190,28 +190,26 @@ __global__ static void tspLoss(unsigned int* city_one,
         if (global_flag[0] != 0){
             tmp = salesman_route[city_one[global_flag[0]]];
             salesman_route[city_one[global_flag[0]]] = salesman_route[city_two[global_flag[0]]];
-            if (city_one[global_flag[0]] == 0)
-                salesman_route[N[0]] = salesman_route[city_two[global_flag[0]]];
             salesman_route[city_two[global_flag[0]]] = tmp;
             global_flag[0] = 0;
         }
     }
     __syncthreads();
     int iter = 0;
-    // Wait till global flag is zero and we do 10000 iterations
+    // Run until either global flag is zero and we do 100 iterations is false.
     while (global_flag[0] == 0 && iter < 100){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     // FIXME: This isn't hitting 99,9999???
     float myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0]) - 0.0+0.9999999999999999);
-    myrandf += 0.0;
+    myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
+    myrandf += 1.0;
     int city_one_swap = (int)truncf(myrandf);
 
 
-    /*
+    
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-1 / T[0]) * (float)N[0]);
+    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -224,12 +222,6 @@ __global__ static void tspLoss(unsigned int* city_one,
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
     int city_two_swap = (int)truncf(myrandf);
-    */
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
-    myrandf += 1.0;
-    int city_two_swap = (int)truncf(myrandf);
-
     
     // This shouldn't have to be here, but if either is larger or equal to N
     // We set it to N[0] - 1
@@ -242,18 +234,17 @@ __global__ static void tspLoss(unsigned int* city_one,
     city_two[tid] = city_two_swap;
 
     float delta, p;
+    // Set the swap cities in the trip.
     unsigned int trip_city_one = salesman_route[city_one_swap];
-
-    // NOTE: We set city two so that it could not be equal to 0 or N
+    unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
+    unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
     unsigned int trip_city_two      = salesman_route[city_two_swap];
     unsigned int trip_city_two_pre  = salesman_route[city_two_swap - 1];
     unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
     float original_dist = 0;
     float proposal_dist = 0;
-    // We need to account for if city swap one is equal to 0
-    if (city_one_swap != 0){
-      unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
-      unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
+
+
 
       // We will always have 4 calculations for original distance and the proposed distance
       // so we just unroll the loop here
@@ -294,48 +285,7 @@ __global__ static void tspLoss(unsigned int* city_one,
                        (location[trip_city_one_post].x - location[trip_city_two].x) +
                        (location[trip_city_one_post].y - location[trip_city_two].y) *
                        (location[trip_city_one_post].y - location[trip_city_two].y);
-    } else {
-    // Now if zero is select we check the distance of the starting point and end point
-      unsigned int trip_city_one_start  = salesman_route[1];
-      unsigned int trip_city_one_end    = salesman_route[(N[0]-1)];
-
-
-      original_dist += (location[trip_city_one_start].x - location[trip_city_one].x) *
-                       (location[trip_city_one_start].x - location[trip_city_one].x) +
-                       (location[trip_city_one_start].y - location[trip_city_one].y) *
-                       (location[trip_city_one_start].y - location[trip_city_one].y);
-      original_dist += (location[trip_city_one_end].x - location[trip_city_one].x) *
-                       (location[trip_city_one_end].x - location[trip_city_one].x) +
-                       (location[trip_city_one_end].y - location[trip_city_one].y) *
-                       (location[trip_city_one_end].y - location[trip_city_one].y);
-      // The second city, unswapped. The one behind it and the one in front of it
-      original_dist += (location[trip_city_two_pre].x - location[trip_city_two].x) *
-                       (location[trip_city_two_pre].x - location[trip_city_two].x) +
-                       (location[trip_city_two_pre].y - location[trip_city_two].y) *
-                       (location[trip_city_two_pre].y - location[trip_city_two].y);
-      original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
-                       (location[trip_city_two_post].x - location[trip_city_two].x) +
-                       (location[trip_city_two_post].y - location[trip_city_two].y) *
-                       (location[trip_city_two_post].y - location[trip_city_two].y);
-      // The first city, swapped. The one behind it and the one in front of it
-      proposal_dist += (location[trip_city_two_pre].x - location[trip_city_one].x) *
-                       (location[trip_city_two_pre].x - location[trip_city_one].x) +
-                       (location[trip_city_two_pre].y - location[trip_city_one].y) *
-                       (location[trip_city_two_pre].y - location[trip_city_one].y);
-      proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
-                       (location[trip_city_two_post].x - location[trip_city_one].x) +
-                       (location[trip_city_two_post].y - location[trip_city_one].y) *
-                       (location[trip_city_two_post].y - location[trip_city_one].y);
-      // The second city, swapped. The one behind it and the one in front of it
-      proposal_dist += (location[trip_city_one_start].x - location[trip_city_two].x) *
-                       (location[trip_city_one_start].x - location[trip_city_two].x) +
-                       (location[trip_city_one_start].y - location[trip_city_two].y) *
-                       (location[trip_city_one_start].y - location[trip_city_two].y);
-      proposal_dist += (location[trip_city_one_end].x - location[trip_city_two].x) *
-                       (location[trip_city_one_end].x - location[trip_city_two].x) +
-                       (location[trip_city_one_end].y - location[trip_city_two].y) *
-                       (location[trip_city_one_end].y - location[trip_city_two].y);
-    }
+    
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is 0
