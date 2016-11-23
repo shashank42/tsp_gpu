@@ -180,10 +180,10 @@ __global__ static void tspSwapUpdate(unsigned int* __restrict__ city_one,
 	                       unsigned int* __restrict__ city_two,
 	                       unsigned int* __restrict__ salesman_route,
 	                       volatile unsigned int *global_flag){
- 
+
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int tmp;	
-    // use thread 0 to refresh the route                       
+    unsigned int tmp;
+    // use thread 0 to refresh the route
     if (tid == 0){
         if (global_flag[0] != 0){
             tmp = salesman_route[city_one[global_flag[0]]];
@@ -202,7 +202,7 @@ __global__ static void tspSwap(unsigned int* city_one,
 	                       volatile unsigned int *global_flag,
 	                       unsigned int* __restrict__ N,
 	                       curandState_t* states){
-    
+
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
@@ -216,7 +216,7 @@ __global__ static void tspSwap(unsigned int* city_one,
     int city_one_swap = (int)truncf(myrandf);
 
 
-    
+
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
@@ -294,7 +294,7 @@ __global__ static void tspSwap(unsigned int* city_one,
                        (location[trip_city_one_post].x - location[trip_city_two].x) +
                        (location[trip_city_one_post].y - location[trip_city_two].y) *
                        (location[trip_city_one_post].y - location[trip_city_two].y);
-    
+
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is 0
@@ -480,6 +480,7 @@ __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
                 {
                     tmp = salesman_route[city_two[global_flag[0]]+tid];
                 }
+                __syncthreads();
                 salesman_route[tid+city_two[global_flag[0]]+1]=tmp;
             }
         }
@@ -495,6 +496,7 @@ __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
                 {
                     tmp = salesman_route[city_two[global_flag[0]]-tid+2];
                 }
+                __syncthreads();
                 salesman_route[city_two[global_flag[0]]+1-tid]=tmp;
            }
         }
@@ -520,7 +522,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
     //indicator stands for the number of elements we have to shift
     //it could be negative, has to be int
-   
+
 
       // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
@@ -531,7 +533,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
     int city_one_swap = (int)truncf(myrandf);
 
 
-    
+
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0] - 2);
     // We need to set the min and max of the second city swap
@@ -554,7 +556,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
     if (city_two_swap >= N[0] - 2)
         city_two_swap = (N[0] - 2);
     // END NEW
-    
+
 
     if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
     {
