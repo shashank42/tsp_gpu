@@ -73,7 +73,7 @@ int main(){
     printf("Original Loss is:  %0.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
-    float T_start = 5.0f, T = T_start, *T_g;
+    float T_start = 15.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
