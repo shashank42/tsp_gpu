@@ -535,7 +535,6 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0] - 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
