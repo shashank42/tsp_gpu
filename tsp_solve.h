@@ -21,7 +21,6 @@ Input:
 - N [unsigned integer(1)]
 - The number of cities.
 */
-/*
 __global__ static void tsp(unsigned int* city_one,
 	                       unsigned int* city_two,
 	                       coordinates* __restrict__ location,
@@ -205,9 +204,9 @@ __global__ static void tspSwap(unsigned int* city_one,
 	                       curandState_t* states){
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
- //   int iter = 0;
+    int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
-//    while (global_flag[0] == 0){
+    while (global_flag[0] == 0 && iter < 100){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     // FIXME: This isn't hitting 99,9999???
@@ -219,7 +218,7 @@ __global__ static void tspSwap(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(T[0]*N[0]+1);
+    int sample_space = (int)floor(exp(-12 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -299,25 +298,23 @@ __global__ static void tspSwap(unsigned int* city_one,
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is 0
-    if (proposal_dist <= original_dist&&global_flag[0]<tid){
+    if (proposal_dist < original_dist&&global_flag[0]<tid){
         global_flag[0] = tid;
         __syncthreads();
-    }
-    if (proposal_dist > original_dist&&global_flag[0]<tid)
-    {
-        quotient=original_dist/proposal_dist;
-        p=quotient*T[0]/2;
+    } else {
+        quotient = proposal_dist/original_dist-1;
+        p = exp(-quotient*40 / T[0]);
         myrandf = curand_uniform(&states[tid]);
-        if(myrandf<p)
+        if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
-        __syncthreads();
+            __syncthreads();
+        }
+     }
+    iter++;
     }
-    }
-  //  iter++;
-//    }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
+}
 
-/*
 //The inserting method
 __global__ static void tsp_2(unsigned int* city_one,
 	                       unsigned int* city_two,
@@ -354,7 +351,7 @@ __global__ static void tsp_2(unsigned int* city_one,
                 __syncthreads;
             }
         }
-        else
+        if(indicator<0)
         {
            if (tid<2-indicator)
            {
@@ -460,7 +457,7 @@ __global__ static void tsp_2(unsigned int* city_one,
     }
     seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
-*/
+
 __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
 	                       unsigned int* __restrict__ city_two,
 	                       unsigned int* __restrict__ salesman_route,
@@ -487,7 +484,7 @@ __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
                 salesman_route[tid+city_two[global_flag[0]]+1]=tmp;
             }
         }
-        else
+        if(indicator<0)
         {
            if (tid<2-indicator)
            {
@@ -538,7 +535,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(T[1] * 9000.0 + 2);
+    int sample_space = (int)floor(exp(-12 / T[0]) * N[0] + 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -608,18 +605,18 @@ __global__ static void tspInsertion(unsigned int* city_one,
      if (proposal_dist < original_dist&&global_flag[0]<tid){
         global_flag[0] = tid;
         __syncthreads();
-     }
-     if (proposal_dist > original_dist&&global_flag[0]<tid)
-      {
-        quotient=original_dist/proposal_dist;
-        p=quotient*T[0]/2;
+     } else {
+        quotient = proposal_dist/original_dist-1;
+        p = exp(-quotient*40 / T[0]);
         myrandf = curand_uniform(&states[tid]);
-        if(myrandf<p)
+        if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
-        __syncthreads();
-      }
+            __syncthreads();
+        }
      }
     }
+}
+
 
 
 #endif // _TSP_SOLVE_H_

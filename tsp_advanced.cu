@@ -30,7 +30,7 @@ nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_advanced.cu -o tsp_cuda -
 
 int main(){
 
-    const char *tsp_name = "ch130.tsp";
+    const char *tsp_name = "mona-lisa100K.tsp";
      read_tsp(tsp_name);
     unsigned int N = meta -> dim, *N_g;  
     // start counters for cities
@@ -73,7 +73,7 @@ int main(){
     printf("Original Loss is:  %0.6f \n", original_loss);
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
-    float T_start = 16.0f, T = T_start, *T_g;
+    float T_start = 120.0f, T = T_start, *T_g;
     int *r_g;
     int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
@@ -153,41 +153,73 @@ int main(){
     cudaMalloc((void**) &states, GRID_SIZE * sizeof(curandState_t));
     init<<<blocksPerGrid, threadsPerBlock,0>>>(time(0), states);
     
-    
-    while (T > 1.0f){
+	while (T > 1.0f)
+	{
+		while (exp(-12/T) * N > 1000)   //long range, only use swap
+		{
+			i = 0;
+			// Copy memory from host to device
+			cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
+			cudaError_t e = cudaGetLastError();                                 \
+			if (e != cudaSuccess) {
+				printf(" Temperature was %.6f on failure\n", T);
+			}
+			while (i < 100)     //this loop is for reducing the memory exchange, we can refresh T by period, instead of every iter
+			{
+				cudaCheckError();
+				tspSwap << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+					location_g, salesman_route_g,
+					T_g, global_flag_g, N_g,
+					states);
+				cudaCheckError();
+				tspSwapUpdate << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+					salesman_route_g, global_flag_g);
 
-        // Copy memory from host to device
-        cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
-        cudaError_t e = cudaGetLastError();                                 \
-            if(e!=cudaSuccess) {
-              printf(" Temperature was %.6f on failure\n", T);
-            }
-        cudaCheckError();
-        tspSwap<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                       location_g, salesman_route_g,
-                                                       T_g, global_flag_g, N_g,
-                                                       states);
-        cudaCheckError();
-        tspSwapUpdate<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                             salesman_route_g, global_flag_g);
-        cudaCheckError();
-        tspInsertion<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                       location_g, salesman_route_g,
-                                                       T_g, global_flag_g, N_g,
-                                                       states);
-        cudaCheckError();
-        tspInsertionUpdate<<<blocksPerGrid, threadsPerBlock, 0>>>(city_swap_one_g, city_swap_two_g,
-                                                                  salesman_route_g,global_flag_g);
+				cudaThreadSynchronize();
+				cudaCheckError();
+		//		iter += 1.00f;
+			//	T = T_start / log(iter);
+		//		if ((long int)iter % 50000 == 0)
+		//			printf("Iter: %ld  Temperature is %.6f\n", (long int)iter, T);
+				i++;
+			}
+			T = T*0.95;
+			printf("T = %f\n", T);
+		}
+		//now T is low enough that the space is smaller than 1000, we can use insertion
+		i = 0;
+		// Copy memory from host to device
+		cudaMemcpy(T_g, &T, sizeof(float), cudaMemcpyHostToDevice);
+		cudaError_t e = cudaGetLastError();                                 \
+		if (e != cudaSuccess) {
+			printf(" Temperature was %.6f on failure\n", T);
+		}
+		while (i < 100)
+		{
+			cudaCheckError();
+			tspSwap << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
+			cudaCheckError();
+			tspSwapUpdate << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, global_flag_g);
+			cudaCheckError();
+			tspInsertion << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
+			cudaCheckError();
+			tspInsertionUpdate << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, global_flag_g);
 
-        cudaThreadSynchronize();
-        cudaCheckError();
-        iter += 1.00f;
-        T = T_start/log(iter);
-        if ((long int)iter % 50000 == 0)
-         printf("Iter: %ld  Temperature is %.6f\n",(long int)iter, T);
-        //T = 1;
-    }
-    
+			cudaThreadSynchronize();
+			cudaCheckError();
+			i++;
+		}
+		T = T*0.95;
+		printf("T = %f\n", T);
+	}
 
     cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
     cudaCheckError();
@@ -233,6 +265,8 @@ int main(){
     free(city_swap_two_h);
     free(flag_h);
     free(location);
+	getchar();
+	getchar();
     return 0;
 }
 
