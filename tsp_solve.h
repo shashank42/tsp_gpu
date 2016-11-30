@@ -303,7 +303,7 @@ __global__ static void tspSwap(unsigned int* city_one,
         __syncthreads();
     } else {
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*40 / T[0]);
+        p = exp(-quotient*2000 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
@@ -607,7 +607,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
         __syncthreads();
      } else {
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*40 / T[0]);
+        p = exp(-quotient*2000 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
