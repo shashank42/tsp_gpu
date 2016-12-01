@@ -16,7 +16,7 @@ __global__ void init(unsigned int seed, curandState_t* states) {
   /* the seed can be the same for each core, here we pass the time in from the CPU */
   /* the sequence number should be different for each core (unless you want all
      cores to get the same sequence of numbers for some reason - use thread id! */
-   /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+  /* the offset is how much extra we advance in the sequence for each call, can be 0 */
   curand_init(seed,
               blockIdx.x * blockDim.x + threadIdx.x,
               0,
@@ -24,22 +24,22 @@ __global__ void init(unsigned int seed, curandState_t* states) {
 }
 
 
-/* TSP With Only Difference Calculation
+/* TSP Using the city swap method
 Input:
 - city_one: [unsigned integer(GRID_SIZE)]
- - Cities to swap for the first swap choice
+ > Cities to swap for the first swap choice
 - city_two: [unsigned integer(GRID_SIZE)]
- - Cities to swap for the second swap choice
-- dist: [float(N * N)]
- - The distance matrix of each city
-- salesman_route: [unsigned integer(N)]
- - The route the salesman will travel
+ > Cities to swap for the second swap choice
+- location [coordinate(N)]
+ > The struct that holds the x and y coordinate information
+- salesman_route: [unsigned integer(N + 1)]
+ > The route the salesman will travel, starting and ending in the same position
 - T: [unsigned integer(1)]
-- The current temperature
-- seed: [unsigned integer(GRID_SIZE)]
-- The seed to generate random number
+ > The current temperature
 - N [unsigned integer(1)]
-- The number of cities.
+ > The number of cities.
+- states [curandState_t(GRID_SIZE)]
+ > The seeds for each proposal steps random sample
 */
 
 
@@ -184,7 +184,23 @@ __global__ static void tspSwapUpdate(unsigned int* __restrict__ city_one,
 }
 
 
-//The inserting method
+/* TSP using the insertion method
+Input:
+- city_one: [unsigned integer(GRID_SIZE)]
+ > Cities to swap for the first swap choice
+- city_two: [unsigned integer(GRID_SIZE)]
+ > Cities to swap for the second swap choice
+- location [coordinate(N)]
+ > The struct that holds the x and y coordinate information
+- salesman_route: [unsigned integer(N + 1)]
+ > The route the salesman will travel, starting and ending in the same position
+- T: [unsigned integer(1)]
+ > The current temperature
+- N [unsigned integer(1)]
+ > The number of cities.
+- states [curandState_t(GRID_SIZE)]
+ > The seeds for each proposal steps random sample
+*/
 __global__ static void tspInsertion(unsigned int* city_one,
 	                       unsigned int* city_two,
 	                       coordinates* __restrict__ location,
