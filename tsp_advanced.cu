@@ -153,8 +153,8 @@ int main(){
     cudaMalloc((void**) &states, GRID_SIZE * sizeof(curandState_t));
     init<<<blocksPerGrid, threadsPerBlock,0>>>(time(0), states);
     
-	while (T > 1.0f)
-	{
+	while (T > 12/log(N))	
+{
 		while (exp(-12/T) * N > 1000)   //long range, only use swap
 		{
 			i = 0;
@@ -269,4 +269,5 @@ int main(){
 	getchar();
     return 0;
 }
+
 
