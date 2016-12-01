@@ -321,8 +321,8 @@ __global__ static void tspInsertion(unsigned int* city_one,
 __global__ static void tspInsertionUpdateTrip(unsigned int* salesman_route, unsigned int* salesman_route2, unsigned int* __restrict__ N){
 
     unsigned int xid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (xid <= N[0])
-        salesman_route[xid] = salesman_route2[xid];
+    if (xid < N[0])
+        salesman_route2[xid] = salesman_route[xid];
 }
                            
 __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
@@ -343,21 +343,20 @@ __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
         unsigned int city_two_swap = city_two[global_flag[0]];
 
         if (city_one_swap < city_two_swap){
-            if (salesman_route[xid] >= city_one_swap || salesman_route[xid] <= city_two_swap){
-                atomicExch(&salesman_route[xid],salesman_route2[xid + 1]);
+            if (xid >= city_one_swap && xid <= city_two_swap){
+                salesman_route[xid] = salesman_route2[xid + 1];
             }           
         } else {
-            if (salesman_route[xid] >= city_two_swap || salesman_route[xid] <= city_one_swap){
-                atomicExch(&salesman_route[xid], salesman_route2[xid - 1]);
+            if (xid >= city_two_swap && xid <= city_one_swap){
+                salesman_route[xid] = salesman_route2[xid - 1];
             }
         }
         __syncthreads();   
         
-    if(xid==0)
-    {
-        salesman_route[city_two_swap] = salesman_route2[city_one_swap];
-        global_flag[0]=0;
-    }
+        if(xid==0){
+            salesman_route[city_two_swap] = salesman_route2[city_one_swap];
+            global_flag[0]=0;
+        }
     __syncthreads();
     }
 }

@@ -152,7 +152,7 @@ int main(){
 		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
 		i = 1;
 
-		while (i<50000){
+		while (i<500){
 
 			cudaError_t e = cudaGetLastError();                                 \
 			if (e != cudaSuccess) {
@@ -180,10 +180,9 @@ int main(){
 			cudaCheckError();
 			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g);
-            cudaCheckError();
+                        cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
-			// I was getting errors with cudamemcpy from device to device so I wrote a kernel to do it.
 			tspInsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 	//		iter += 1.00f;
@@ -233,6 +232,8 @@ int main(){
 	cudaCheckError();
 	cudaFree(salesman_route_g);
 	cudaCheckError();
+	cudaFree(salesman_route_2g);
+	cudaCheckError();
 	cudaFree(T_g);
 	cudaCheckError();
 	cudaFree(flag_g);
@@ -242,7 +243,6 @@ int main(){
 	free(city_swap_two_h);
 	free(flag_h);
 	free(location);
-	getchar();
 	getchar();
 	return 0;
 }
