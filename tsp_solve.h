@@ -218,7 +218,7 @@ __global__ static void tspSwap(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-10 / T[0]) * (float)N[0]);
+    int sample_space = (int)floor(exp(-12 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -242,7 +242,7 @@ __global__ static void tspSwap(unsigned int* city_one,
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
-    float delta, p;
+    float quotient, p;
     // Set the swap cities in the trip.
     unsigned int trip_city_one = salesman_route[city_one_swap];
     unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
@@ -302,14 +302,14 @@ __global__ static void tspSwap(unsigned int* city_one,
         global_flag[0] = tid;
         __syncthreads();
     } else {
-        delta = proposal_dist - original_dist;
-        p = exp(-delta / T[0]);
+        quotient = proposal_dist/original_dist-1;
+        p = exp(-quotient*2000 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
             __syncthreads();
         }
-    }
+     }
     iter++;
     }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
@@ -535,7 +535,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-100 / T[0]) * 9000.0 + 2);
+    int sample_space = (int)floor(exp(-12 / T[0]) * N[0] + 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -563,7 +563,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
         city_one[tid] = city_one_swap;
         city_two[tid] = city_two_swap;
 
-        float delta, p;
+        float quotient, p;
         unsigned int trip_city_one = salesman_route[city_one_swap];
         unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
         unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
@@ -606,8 +606,8 @@ __global__ static void tspInsertion(unsigned int* city_one,
         global_flag[0] = tid;
         __syncthreads();
      } else {
-        delta = proposal_dist - original_dist;
-        p = exp(-delta / T[0]);
+        quotient = proposal_dist/original_dist-1;
+        p = exp(-quotient*2000 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
