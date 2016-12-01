@@ -69,7 +69,7 @@ __global__ static void tspSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     // This gives us a nice curve
     //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-    int sample_space = (int)floor(exp(- 0.2 / T[0]) * (float)N[0]);
+    int sample_space = (int)floor(exp(- 0.01 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -154,7 +154,7 @@ __global__ static void tspSwap(unsigned int* city_one,
         __syncthreads();
     } else {
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*2000 / T[0]);
+        p = exp(-quotient*20 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
@@ -226,7 +226,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- 0.2 / T[0]) * N[0]);
+    int sample_space = (int)floor(exp(- 0.01 / T[0]) * N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -268,14 +268,14 @@ __global__ static void tspInsertion(unsigned int* city_one,
         /* City one is the city to be inserted between city two and city two + 1
            That means we only have to make three calculations to compute each loss funciton
            original:
-             - city one - 1 -> city one 
+             - city one - 1 -> city one
              - city one -> city one + 1
              - City two -> city two + 1
            proposal:
-             - city two -> city one 
+             - city two -> city one
              - city one -> city two + 1
              - city one - 1 -> city one + 1
-        */ 
+        */
         original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
                          (location[trip_city_one_pre].x - location[trip_city_one].x) +
                          (location[trip_city_one_pre].y - location[trip_city_one].y) *
@@ -308,7 +308,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
         __syncthreads();
      } else {
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*2000 / T[0]);
+        p = exp(-quotient*20 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
@@ -324,13 +324,13 @@ __global__ static void tspInsertionUpdateTrip(unsigned int* salesman_route, unsi
     if (xid < N[0])
         salesman_route2[xid] = salesman_route[xid];
 }
-                           
+
 __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
                            unsigned int* salesman_route2,
                            volatile unsigned int *global_flag){
-                           
+
     // each thread is a position in the salesman's trip
     const int xid = blockIdx.x * blockDim.x + threadIdx.x;
     /*
@@ -343,24 +343,21 @@ __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
         unsigned int city_two_swap = city_two[global_flag[0]];
 
         if (city_one_swap < city_two_swap){
-            if (xid >= city_one_swap && xid <= city_two_swap){
+            if (xid >= city_one_swap && xid < city_two_swap){
                 salesman_route[xid] = salesman_route2[xid + 1];
-            }           
+            }
+			if (xid == 0)
+				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
         } else {
-            if (xid >= city_two_swap && xid <= city_one_swap){
+            if (xid > city_two_swap+1 && xid <= city_one_swap){
                 salesman_route[xid] = salesman_route2[xid - 1];
             }
+			if (xid == 0)
+				salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
         }
-        __syncthreads();   
-        
-        if(xid==0){
-            salesman_route[city_two_swap] = salesman_route2[city_one_swap];
-            global_flag[0]=0;
-        }
-    __syncthreads();
     }
 }
-                           
+
 __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,

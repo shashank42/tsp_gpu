@@ -73,9 +73,8 @@ int main(){
 	printf("Original Loss is:  %0.6f \n", original_loss);
 	// Keep the original loss for comparison pre/post algorithm
 	// SET THE LOSS HERE
-	float T[2], *T_g;
+	float T[1], *T_g;
 	T[0] = 1;
-	T[1] = 1;
 	/*
 	Defining device variables:
 	city_swap_one_h/g: [integer(t_num)]
@@ -109,7 +108,7 @@ int main(){
 	cudaCheckError();
 	cudaMalloc((void**)&salesman_route_2g, (N + 1) * sizeof(unsigned int));
 	cudaCheckError();
-	cudaMalloc((void**)&T_g, 2*sizeof(float));
+	cudaMalloc((void**)&T_g, sizeof(float));
 	cudaCheckError();
 	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
@@ -137,7 +136,7 @@ int main(){
 	// Number of thread blocks in grid
 	// X is for the sampling, y is for manipulating the salesman's route
 	dim3 blocksPerSampleGrid(GRID_SIZE / t_num, 1, 1);
-	dim3 blocksPerTripGrid((N+1) / t_num, 1, 1);
+	dim3 blocksPerTripGrid((N / t_num) + 1, 1, 1);
 	dim3 threadsPerBlock(t_num, 1, 1);
 
 	// Trying out random gen in cuda
@@ -146,13 +145,18 @@ int main(){
 	/* allocate space on the GPU for the random states */
 	cudaMalloc((void**)&states, GRID_SIZE * sizeof(curandState_t));
 	init <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(time(0), states);
-	while (T[0] * N > 100)
+
+	//time counter
+	time_t t_start, t_end;
+	t_start = time(NULL);
+
+	while (T[0] > 0.01/log(N))
 	{
 		// Copy memory from host to device
-		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
 		i = 1;
 
-		while (i<50000){
+		while (i<500){
 
 			cudaError_t e = cudaGetLastError();                                 \
 			if (e != cudaSuccess) {
@@ -174,17 +178,18 @@ int main(){
 			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
-				states);
+				states); 
 			cudaCheckError();
 			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g);
                         cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
-			tspInsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
+			
 	//		iter += 1.00f;
 	//		T = T_start / log(iter);
 	//		if ((long int)iter % 50000 == 0)
@@ -193,11 +198,11 @@ int main(){
 			i++;
 		}
 		T[0] = T[0] * 0.99;
-		if (T[0] * N < 9000)
-			T[1] = T[1] * 0.99;
-		printf("T[0] %f  T[1] %f\n",T[0],T[1]);
+		printf("T[0] %f  \n",T[0]);
 	}
-
+	//print time spent
+	t_end = time(NULL);
+	printf("time = %f\n", difftime(t_end, t_start));
 
 	cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
 	cudaCheckError();
