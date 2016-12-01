@@ -152,7 +152,7 @@ int main(){
 		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
 		i = 1;
 
-		while (i<500){
+		while (i<50000){
 
 			cudaError_t e = cudaGetLastError();                                 \
 			if (e != cudaSuccess) {

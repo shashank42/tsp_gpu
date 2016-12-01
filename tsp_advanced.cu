@@ -24,7 +24,7 @@ Some compliation options that can speed things up
 --optimize=5
 --gpu-architecture=compute_35
 I use something like
-NOTE: You need to use the -lcurand flag to compile.
+NOTE: You need to use the -lcurand flag to compile for the rng.
 nvcc --optimize=5 --use_fast_math -arch=compute_35 tsp_advanced.cu -o tsp_cuda -lcurand
 */
 
@@ -74,14 +74,7 @@ int main(){
     // Keep the original loss for comparison pre/post algorithm
     // SET THE LOSS HERE
     float T_start = 120.0f, T = T_start, *T_g;
-    int *r_g;
-    int *r_h = (int *)malloc(GRID_SIZE * sizeof(int));
     double iter = 1.00f;
-    srand(1234);
-    for (i = 0; i<GRID_SIZE; i++)
-    {
-        r_h[i] = rand();
-    }
     /*
     Defining device variables:
     city_swap_one_h/g: [integer(t_num)]
@@ -92,8 +85,6 @@ int main(){
     - Host/Device memory for flag of accepted step
     salesman_route_g: [integer(N)]
     - Device memory for the salesmans route
-    r_g:  [float(t_num)]
-    - Device memory for the random number when deciding acceptance
     flag_h/g: [integer(t_num)]
     - host/device memory for acceptance vector
     original_loss_g: [integer(1)]
@@ -117,8 +108,6 @@ int main(){
     cudaCheckError();
     cudaMalloc((void**)&T_g, sizeof(float));
     cudaCheckError();
-    cudaMalloc((void**)&r_g, GRID_SIZE * sizeof(int));
-    cudaCheckError();
     cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
     cudaCheckError();
     cudaMalloc((void**)&global_flag_g, sizeof(unsigned int));
@@ -130,8 +119,6 @@ int main(){
     cudaMemcpy(location_g, location, N * sizeof(coordinates), cudaMemcpyHostToDevice);
     cudaCheckError();
     cudaMemcpy(salesman_route_g, salesman_route,  (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
-    cudaCheckError();
-    //cudaMemcpy(r_g, r_h, GRID_SIZE * sizeof(int), cudaMemcpyHostToDevice);
     cudaCheckError();
     cudaMemcpy(global_flag_g, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
