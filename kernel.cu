@@ -96,7 +96,7 @@ int main(){
 	unsigned int *city_swap_one_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
-	unsigned int *salesman_route_g, *flag_g, *city_swap_one_g, *city_swap_two_g;
+	unsigned int *salesman_route_g, *salesman_route_2g, *flag_g, *city_swap_one_g, *city_swap_two_g;
 	unsigned int global_flag_h = 0, *global_flag_g;
 
 	cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
@@ -106,6 +106,8 @@ int main(){
 	cudaMalloc((void**)&location_g, N * sizeof(coordinates));
 	cudaCheckError();
 	cudaMalloc((void**)&salesman_route_g, (N + 1) * sizeof(unsigned int));
+	cudaCheckError();
+	cudaMalloc((void**)&salesman_route_2g, (N + 1) * sizeof(unsigned int));
 	cudaCheckError();
 	cudaMalloc((void**)&T_g, 2*sizeof(float));
 	cudaCheckError();
@@ -121,6 +123,8 @@ int main(){
 	cudaCheckError();
 	cudaMemcpy(salesman_route_g, salesman_route, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
+	cudaMemcpy(salesman_route_2g, salesman_route, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaCheckError();
 	cudaMemcpy(global_flag_g, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
@@ -131,7 +135,9 @@ int main(){
 	// https://arxiv.org/pdf/cs/0001018.pdf
 
 	// Number of thread blocks in grid
-	dim3 blocksPerGrid(GRID_SIZE / t_num, 1, 1);
+	// X is for the sampling, y is for manipulating the salesman's route
+	dim3 blocksPerSampleGrid(GRID_SIZE / t_num, 1, 1);
+	dim3 blocksPerTripGrid((N+1) / t_num, 1, 1);
 	dim3 threadsPerBlock(t_num, 1, 1);
 
 	// Trying out random gen in cuda
@@ -139,7 +145,7 @@ int main(){
 
 	/* allocate space on the GPU for the random states */
 	cudaMalloc((void**)&states, GRID_SIZE * sizeof(curandState_t));
-	init << <blocksPerGrid, threadsPerBlock, 0 >> >(time(0), states);
+	init <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(time(0), states);
 	while (T[0] * N > 100)
 	{
 		// Copy memory from host to device
@@ -153,26 +159,31 @@ int main(){
 				printf(" Temperature was %.6f on failure\n", T[0]);
 			}
 			cudaCheckError();
-			tspSwap << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			tspSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);
+			cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
-			tspSwapUpdate << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			tspSwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
+			cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
-			tspInsertion << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);
+			cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
-			tspInsertionUpdate << <blocksPerGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, global_flag_g);
-
+			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+            cudaCheckError();
 			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 	//		iter += 1.00f;
 	//		T = T_start / log(iter);
@@ -203,9 +214,9 @@ int main(){
 	FILE *best_trip;
 	const char *filename = "mona_lisa_best_trip.csv";
 	best_trip = fopen(filename, "w+");
-	fprintf(best_trip, "location,coordinate_x,coordinate_y \n");
+	fprintf(best_trip, "location,coordinate_x,coordinate_y\n");
 	for (i = 0; i < N + 1; i++){
-		fprintf(best_trip, "%d, %.6f, %.6f \n",
+		fprintf(best_trip, "%d,%.6f,%.6f\n",
 			salesman_route[i],
 			location[salesman_route[i]].x,
 			location[salesman_route[i]].y);

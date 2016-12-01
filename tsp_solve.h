@@ -9,7 +9,7 @@
 *  Come from:
 *    http://cs.umw.edu/~finlayson/class/fall14/cpsc425/notes/23-cuda-random.html
 *
- */
+*/
 __global__ void init(unsigned int seed, curandState_t* states) {
 
   /* we have to initialize the state */
@@ -44,13 +44,13 @@ Input:
 
 
 __global__ static void tspSwap(unsigned int* city_one,
-	                       unsigned int* city_two,
-	                       coordinates* __restrict__ location,
-	                       unsigned int* __restrict__ salesman_route,
-	                       float* __restrict__ T,
-	                       volatile unsigned int *global_flag,
-	                       unsigned int* __restrict__ N,
-	                       curandState_t* states){
+                           unsigned int* city_two,
+                           coordinates* __restrict__ location,
+                           unsigned int* __restrict__ salesman_route,
+                           float* __restrict__ T,
+                           volatile unsigned int *global_flag,
+                           unsigned int* __restrict__ N,
+                           curandState_t* states){
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
@@ -67,7 +67,9 @@ __global__ static void tspSwap(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-12 / T[0]) * (float)N[0]);
+    // This gives us a nice curve
+    //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
+    int sample_space = (int)floor(exp(- 0.2 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -165,9 +167,9 @@ __global__ static void tspSwap(unsigned int* city_one,
 }
 
 __global__ static void tspSwapUpdate(unsigned int* __restrict__ city_one,
-	                       unsigned int* __restrict__ city_two,
-	                       unsigned int* __restrict__ salesman_route,
-	                       volatile unsigned int *global_flag){
+                           unsigned int* __restrict__ city_two,
+                           unsigned int* __restrict__ salesman_route,
+                           volatile unsigned int *global_flag){
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tmp;
@@ -202,23 +204,20 @@ Input:
  > The seeds for each proposal steps random sample
 */
 __global__ static void tspInsertion(unsigned int* city_one,
-	                       unsigned int* city_two,
-	                       coordinates* __restrict__ location,
-	                       unsigned int* __restrict__ salesman_route,
-	                       float* __restrict__ T,
-	                       volatile unsigned int *global_flag,
-	                       unsigned int* __restrict__ N,
-	                       curandState_t* states){
+                           unsigned int* city_two,
+                           coordinates* __restrict__ location,
+                           unsigned int* __restrict__ salesman_route,
+                           float* __restrict__ T,
+                           volatile unsigned int *global_flag,
+                           unsigned int* __restrict__ N,
+                           curandState_t* states){
     //first, refresh the route, this time we have to change city_one-city_two elements
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    //indicator stands for the number of elements we have to shift
-    //it could be negative, has to be int
 
 
       // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-    // FIXME: This isn't hitting 99,9999???
     float myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
     myrandf += 1.0;
@@ -227,15 +226,15 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(-12 / T[0]) * N[0] + 2);
+    int sample_space = (int)floor(exp(- 0.2 / T[0]) * N[0] + 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
            1;
 
-    int max_city_two = (city_one_swap + sample_space < N[0] - 2)?
+    int max_city_two = (city_one_swap + sample_space < N[0] - 1)?
         city_one_swap + sample_space:
-            (N[0] - 32);
+            (N[0] - 2);
     myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
@@ -243,9 +242,9 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
     // This shouldn't have to be here, but if either is larger or equal to N
     // We set it to N[0] - 1
-    if (city_one_swap >= N[0] - 2)
+    if (city_one_swap > N[0] - 2)
         city_one_swap = (N[0] - 2);
-    if (city_two_swap >= N[0] - 2)
+    if (city_two_swap > N[0] - 2)
         city_two_swap = (N[0] - 2);
     // END NEW
 
@@ -266,7 +265,17 @@ __global__ static void tspInsertion(unsigned int* city_one,
         float original_dist = 0;
         float proposal_dist = 0;
 
-        // this method changes three segments
+        /* City one is the city to be inserted between city two and city two + 1
+           That means we only have to make three calculations to compute each loss funciton
+           original:
+             - city one - 1 -> city one 
+             - city one -> city one + 1
+             - City two -> city two + 1
+           proposal:
+             - city two -> city one 
+             - city one -> city two + 1
+             - city one - 1 -> city one + 1
+        */ 
         original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
                          (location[trip_city_one_pre].x - location[trip_city_one].x) +
                          (location[trip_city_one_pre].y - location[trip_city_one].y) *
@@ -309,11 +318,54 @@ __global__ static void tspInsertion(unsigned int* city_one,
     }
 }
 
+__global__ static void tspInsertionUpdateTrip(unsigned int* salesman_route, unsigned int* salesman_route2, unsigned int* __restrict__ N){
 
+    unsigned int xid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (xid <= N[0])
+        salesman_route[xid] = salesman_route2[xid];
+}
+                           
+__global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
+                           unsigned int* __restrict__ city_two,
+                           unsigned int* salesman_route,
+                           unsigned int* salesman_route2,
+                           volatile unsigned int *global_flag){
+                           
+    // each thread is a position in the salesman's trip
+    const int xid = blockIdx.x * blockDim.x + threadIdx.x;
+    /*
+      1. Save city one
+      2. Shift everything between city one and city two up or down, depending on city one < city two
+      3. Set city two's old position to city one
+    */
+    if (global_flag[0] != 0){
+        unsigned int city_one_swap = city_one[global_flag[0]];
+        unsigned int city_two_swap = city_two[global_flag[0]];
+
+        if (city_one_swap < city_two_swap){
+            if (salesman_route[xid] >= city_one_swap || salesman_route[xid] <= city_two_swap){
+                atomicExch(&salesman_route[xid],salesman_route2[xid + 1]);
+            }           
+        } else {
+            if (salesman_route[xid] >= city_two_swap || salesman_route[xid] <= city_one_swap){
+                atomicExch(&salesman_route[xid], salesman_route2[xid - 1]);
+            }
+        }
+        __syncthreads();   
+        
+    if(xid==0)
+    {
+        salesman_route[city_two_swap] = salesman_route2[city_one_swap];
+        global_flag[0]=0;
+    }
+    __syncthreads();
+    }
+}
+                           
 __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
-	                       unsigned int* __restrict__ city_two,
-	                       unsigned int* __restrict__ salesman_route,
-	                       volatile unsigned int *global_flag){
+                           unsigned int* __restrict__ city_two,
+                           unsigned int* salesman_route,
+                           volatile unsigned int *global_flag){
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tmp;
     int indicator;
