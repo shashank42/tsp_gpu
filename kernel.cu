@@ -183,6 +183,7 @@ int main(){
             cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
+			// I was getting errors with cudamemcpy from device to device so I wrote a kernel to do it.
 			tspInsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 	//		iter += 1.00f;
