@@ -15,7 +15,7 @@
 
 
 #define t_num 1024
-#define GRID_SIZE 9216
+#define GRID_SIZE 8192
 
 /*
 For more samples define GRID_SIZE as a multiple of t_num such as 512000, 2048000, or the (max - 1024) grid size 2147482623
@@ -73,8 +73,9 @@ int main(){
 	printf("Original Loss is:  %0.6f \n", original_loss);
 	// Keep the original loss for comparison pre/post algorithm
 	// SET THE LOSS HERE
-	float T[1], *T_g;
-	T[0] = 30;
+	float T[2], *T_g;
+	T[0] = 100;
+	T[1] = 100;
 	/*
 	Defining device variables:
 	city_swap_one_h/g: [integer(t_num)]
@@ -108,7 +109,7 @@ int main(){
 	cudaCheckError();
 	cudaMalloc((void**)&salesman_route_2g, (N + 1) * sizeof(unsigned int));
 	cudaCheckError();
-	cudaMalloc((void**)&T_g, sizeof(float));
+	cudaMalloc((void**)&T_g, 2 * sizeof(float));
 	cudaCheckError();
 	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
@@ -128,10 +129,6 @@ int main(){
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	// Beta is the decay rate
-	//float beta = 0.0001;
-	// We are going to try some stuff for temp from this adaptive simulated annealing paper
-	// https://arxiv.org/pdf/cs/0001018.pdf
 
 	// Number of thread blocks in grid
 	// X is for the sampling, y is for manipulating the salesman's route
@@ -149,94 +146,74 @@ int main(){
 	//time counter
 	time_t t_start, t_end;
 	t_start = time(NULL);
-
+	
+	// Testing out restarting
+	// http://codecapsule.com/2010/04/06/simulated-annealing-traveling-salesman/
+	unsigned int *salesman_route_restart = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
+	// Just need to fill it up first
+	for (i = 0; i <= N; i++)
+		salesman_route_restart[i] = i;
+    float optimized_loss_restart = original_loss;
+    long int iter = 0;
+    
 	while (T[0] > 0.01/log(2*N))
 	{
 		// Copy memory from host to device
-		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
+		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
+		cudaCheckError();
 		i = 1;
 
-		while (i<500){
+		while (i<5000){
 
-			cudaError_t e = cudaGetLastError();                                 
-			if (e != cudaSuccess) {
-				printf(" Temperature was %.6f on failure\n", T[0]);
-			}
-			tspSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			globalSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);  
 			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			
+			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-/*			tspSwap2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			
+			localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states); 
 			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			
+			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
-			cudaThreadSynchronize();
-			*/
+			
 			cudaCheckError();
-			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+			globalInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states); 
 			cudaCheckError();
-			cudaThreadSynchronize();
+			
+			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+			
+			InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g);
             cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();  
-
-	/*		tspInsertion2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g,
-				T_g, global_flag_g, N_g,
-				states);
+            
+			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g);
-			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();*/
-
-	/*		tspInsertion << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g,
-				T_g, global_flag_g, N_g,
-				states);
-			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g);
-			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();    */
 			
-	//		iter += 1.00f;
-	//		T = T_start / log(iter);
-	//		if ((long int)iter % 50000 == 0)
-	//			printf("Iter: %ld  Temperature is %.6f\n", (long int)iter, T);
-			//T = 1;
+			localInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
+			cudaCheckError();
+			
+			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			
+			InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
 			i++;
 		}
 		cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -248,9 +225,19 @@ int main(){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
-		printf("Optimized Loss is: %.6f \n", optimized_loss);
+		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
 		T[0] = T[0] * 0.99;
-		printf("T[0] %f  \n",T[0]);
+		
+		iter++;
+		// Since we are doing a large number of iterations at each step
+		// We will restart if at the end of them we still have a worse loss
+		// We can base this off of something better later
+		if (optimized_loss < optimized_loss_restart){
+		    optimized_loss_restart = optimized_loss;
+		    cudaMemcpy(salesman_route_restart, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+	    } else if (iter % 200 == 0 ){
+		    cudaMemcpy(salesman_route_g, salesman_route_restart, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
+		}
 	}
 	//print time spent
 	t_end = time(NULL);
@@ -258,13 +245,17 @@ int main(){
 
 	cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
 	cudaCheckError();
+	
+	if (optimized_loss > optimized_loss_restart){
+	    for (i = 0; i <= N; i++
 	float optimized_loss = 0;
 	for (i = 0; i < N; i++){
 		optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
 			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
-	} 
+	}
+	printf("Original Loss is:  %0.6f \n", original_loss); 
 	printf("Optimized Loss is: %.6f \n", optimized_loss);
 
 	// Write the best trip to CSV
@@ -296,6 +287,7 @@ int main(){
 	cudaFree(flag_g);
 	cudaCheckError();
 	free(salesman_route);
+	free(salesman_route_restart);
 	free(city_swap_one_h);
 	free(city_swap_two_h);
 	free(flag_h);
