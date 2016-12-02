@@ -1,5 +1,5 @@
-#ifndef _TSP_SOLVE_H_
-#define _TSP_SOLVE_H_
+#ifndef _TSP_SWAP_H_
+#define _TSP_SWAP_H_
 
 #include <curand.h>
 #include <curand_kernel.h>
@@ -55,7 +55,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
-    while (global_flag[0] == 0 && iter < 100){
+    while (global_flag[0] == 0 && iter < 50){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
@@ -150,9 +150,10 @@ __global__ static void globalSwap(unsigned int* city_one,
     //because if I pick the small one, I have to tell whether the flag is 0
     if (proposal_dist < original_dist&&global_flag[0]<tid){
         global_flag[0] = tid;
-        __syncthreads();
-	} 
-	else if (global_flag[0]==0)
+       
+	}
+	 __syncthreads(); 
+	if (global_flag[0]==0)
 	{
         quotient = proposal_dist - original_dist;
         p = exp(-quotient / T[0]);
@@ -179,7 +180,7 @@ __global__ static void localSwap(unsigned int* city_one,
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int iter = 0;
 	// Run until either global flag is zero and we do 100 iterations is false.
-	while (global_flag[0] == 0 && iter < 100){
+	while (global_flag[0] == 0 && iter < 50){
 		// Generate the first city
 		// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 		// FIXME: This isn't hitting 99,9999???
@@ -276,9 +277,10 @@ __global__ static void localSwap(unsigned int* city_one,
 		//because if I pick the small one, I have to tell whether the flag is 0
 		if (proposal_dist < original_dist&&global_flag[0]<tid){
 			global_flag[0] = tid;
-			__syncthreads();
+			
 		}
-		else if (global_flag[0] == 0)
+		__syncthreads();
+		if (global_flag[0] == 0)
 		{
 			quotient = proposal_dist - original_dist;
 			p = exp(-quotient / T[0]);
@@ -342,7 +344,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     int iter = 0;
-    while (global_flag[0] == 0 && iter < 100){
+    while (global_flag[0] == 0 && iter < 50){
       // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
@@ -432,8 +434,10 @@ __global__ static void globalInsertion(unsigned int* city_one,
         //because if I pick the small one, I have to tell whether the flag is 0
         if (proposal_dist < original_dist&&global_flag[0]<tid){
             global_flag[0] = tid;
-            __syncthreads();
-        } else if (global_flag[0]==0) {
+            
+        }
+        __syncthreads();
+        if (global_flag[0]==0) {
         
             quotient = proposal_dist - original_dist; 
             p = exp(-quotient / T[0]);
@@ -460,7 +464,7 @@ __global__ static void localInsertion(unsigned int* city_one,
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
 
-    while (global_flag[0] == 0 && iter < 100){
+    while (global_flag[0] == 0 && iter < 50){
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 	float myrandf = curand_uniform(&states[tid]);
@@ -551,9 +555,10 @@ __global__ static void localInsertion(unsigned int* city_one,
 		//because if I pick the small one, I have to tell whether the flag is 0
         if (proposal_dist < original_dist&&global_flag[0]<tid){
 			global_flag[0] = tid;
-			__syncthreads();
+			
 		}
-		else if (global_flag[0] == 0)
+		__syncthreads();
+		if (global_flag[0] == 0)
 		{
 			quotient = proposal_dist - original_dist;
 			p = exp(-quotient / T[0]);
@@ -664,5 +669,5 @@ __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
 
 
 
-#endif // _TSP_SOLVE_H_
+#endif // _TSP_SWAP_H_
 
