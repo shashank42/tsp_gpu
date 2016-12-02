@@ -178,7 +178,7 @@ int main(){
 			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
-			/*
+			
 
 			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 			                                                            location_g, salesman_route_g,
@@ -186,16 +186,16 @@ int main(){
 			                                                            states); 
 			cudaCheckError();
 			
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
+			//tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			//cudaCheckError();
 			
-			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				                                                             salesman_route_g, salesman_route_2g,
+			tspInsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                             salesman_route_g,
 				                                                             global_flag_g);
             cudaCheckError();
             
-		    tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
+		    //tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			//cudaCheckError();
 
 			tspInsertion2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				                                                           location_g, salesman_route_g,
@@ -203,14 +203,14 @@ int main(){
 				                                                           states);
 			cudaCheckError();
 
-			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				                                                               salesman_route_g, salesman_route_2g,
+			tspInsertionUpdate << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				                                                               salesman_route_g, 
 				                                                               global_flag_g);
 			cudaCheckError();
 			
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			*/
+			//tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			//cudaCheckError();
+			
 	//		iter += 1.00f;
 	//		T = T_start / log(iter);
 	//		if ((long int)iter % 50000 == 0)

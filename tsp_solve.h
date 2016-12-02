@@ -68,8 +68,9 @@ __global__ static void tspSwap(unsigned int* city_one,
 
     // This is the maximum we can sample from
     // This gives us a nice curve
-    //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-    int sample_space = (int)floor(exp(- 0.01 / T[0]) * (float)N[0]);
+    //****NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
+    //http://www.wolframalpha.com/input/?i=e%5E(-+1%2Ft)+from+30+to+1
+    int sample_space = (int)floor(exp(- 1 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -193,8 +194,9 @@ __global__ static void tspSwap2(unsigned int* city_one,
 
 		// This is the maximum we can sample from
 		// This gives us a nice curve
-		//http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-		int sample_space = (int)floor(exp(-0.001 / T[0]) * (float)N[0]);
+		// NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
+		//http://www.wolframalpha.com/input/?i=e%5E(-+70%2Ft)+from+30+to+1
+		int sample_space = (int)floor(exp(-70 / T[0]) * (float)N[0]);
 		// We need to set the min and max of the second city swap
 		int min_city_two = (city_one_swap - sample_space > 0) ?
 			city_one_swap - sample_space :
@@ -204,7 +206,6 @@ __global__ static void tspSwap2(unsigned int* city_one,
 			city_one_swap + sample_space :
 			(N[0] - 1);
 		myrandf = curand_uniform(&states[tid]);
-		myrandf = 0.8 + myrandf*0.2;
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
@@ -354,7 +355,9 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- 0.01 / T[0]) * N[0]);
+    // NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
+    //http://www.wolframalpha.com/input/?i=e%5E(-+1%2Ft)+from+30+to+1
+    int sample_space = (int)floor(exp(- 1 / T[0]) * N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -376,6 +379,25 @@ __global__ static void tspInsertion(unsigned int* city_one,
         city_two_swap = (N[0] - 2);
     // END NEW
 
+/*
+    int min_city_two = (city_one_swap - 100 > 0)?
+        city_one_swap - 100:
+           1;
+
+    int max_city_two = (city_one_swap + 100 < N[0] - 1)?
+        city_one_swap + 100:
+            (N[0] - 2);
+    myrandf = curand_uniform(&states[tid]);
+    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
+    myrandf += min_city_two;
+    int city_two_swap = (int)truncf(myrandf);
+*/
+    // This shouldn't have to be here, but if either is larger or equal to N - 2
+    // We set it to N[0] - 2
+    if (city_one_swap > N[0] - 2)
+        city_one_swap = (N[0] - 2);
+    if (city_two_swap > N[0] - 2)
+        city_two_swap = (N[0] - 2);
 
     if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
     {
@@ -471,7 +493,9 @@ __global__ static void tspInsertion2(unsigned int* city_one,
 
 
 	// This is the maximum we can sample from
-	int sample_space = (int)floor(exp(-0.001 / T[0]) * N[0]);
+	// NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
+    //http://www.wolframalpha.com/input/?i=e%5E(-+70%2Ft)+from+30+to+1
+	int sample_space = (int)floor(exp(-70 / T[0]) * N[0]);
 	// We need to set the min and max of the second city swap
 	int min_city_two = (city_one_swap - sample_space > 0) ?
 		city_one_swap - sample_space :
@@ -481,7 +505,6 @@ __global__ static void tspInsertion2(unsigned int* city_one,
 		city_one_swap + sample_space :
 		(N[0] - 2);
 	myrandf = curand_uniform(&states[tid]);
-	myrandf = 0.8 + myrandf*0.2;
 	myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 	myrandf += min_city_two;
 	int city_two_swap = (int)truncf(myrandf);
