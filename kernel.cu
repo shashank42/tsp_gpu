@@ -30,10 +30,10 @@ nvcc --optimize=5 --use_fast_math -arch=compute_35 kernel.cu -o tsp_cuda -lcuran
 
 int main(){
 
-	const char *tsp_name = "dsj1000.tsp";
+	const char *tsp_name = "mona-lisa100K.tsp";
 	read_tsp(tsp_name);
 	unsigned int N = meta->dim, *N_g;
-	// start counters for cities
+	// start counters for cities 
 	unsigned int i;
 
 	coordinates *location_g;
@@ -150,66 +150,87 @@ int main(){
 	time_t t_start, t_end;
 	t_start = time(NULL);
 
-	while (T[0] > 1)
+	while (T[0] > 0.01/log(2*N))
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
-		cudaCheckError();
 		i = 1;
 
 		while (i<500){
 
-			
-			tspSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				                                                   location_g, salesman_route_g,
-				                                                   T_g, global_flag_g, N_g,
-				                                                   states);
-			cudaCheckError(); 
-			tspSwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				                                                         salesman_route_g, global_flag_g);
+			cudaError_t e = cudaGetLastError();                                 
+			if (e != cudaSuccess) {
+				printf(" Temperature was %.6f on failure\n", T[0]);
+			}
+			tspSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);  
 			cudaCheckError();
-			
-			tspSwap2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				                                                      location_g, salesman_route_g,
-				                                                      T_g, global_flag_g, N_g,
-				                                                      states);
+			cudaThreadSynchronize();
 			cudaCheckError();
-			
 			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
-			
-
+			cudaThreadSynchronize();
+			cudaCheckError();
+/*			tspSwap2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states); 
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, global_flag_g);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			*/
+			cudaCheckError();
 			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-			                                                            location_g, salesman_route_g,
-			                                                            T_g, global_flag_g, N_g,
-			                                                            states); 
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states); 
 			cudaCheckError();
-			
-			//tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			//cudaCheckError();
-			
-			tspInsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				                                                             salesman_route_g,
-				                                                             global_flag_g);
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
             cudaCheckError();
-            
-		    //tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			//cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();  
 
-			tspInsertion2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				                                                           location_g, salesman_route_g,
-				                                                           T_g, global_flag_g, N_g,
-				                                                           states);
+	/*		tspInsertion2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
 			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();*/
 
-			tspInsertionUpdate << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
-				                                                               salesman_route_g, 
-				                                                               global_flag_g);
+	/*		tspInsertion << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
 			cudaCheckError();
-			
-			//tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			//cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();    */
 			
 	//		iter += 1.00f;
 	//		T = T_start / log(iter);
@@ -227,9 +248,9 @@ int main(){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
-		
-		T[0] = T[0] * 0.999;
-		printf("T[0]: %f Optimized Loss is: %.6f  \n",T[0], optimized_loss);
+		printf("Optimized Loss is: %.6f \n", optimized_loss);
+		T[0] = T[0] * 0.99;
+		printf("T[0] %f  \n",T[0]);
 	}
 	//print time spent
 	t_end = time(NULL);

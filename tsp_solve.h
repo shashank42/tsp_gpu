@@ -68,9 +68,8 @@ __global__ static void tspSwap(unsigned int* city_one,
 
     // This is the maximum we can sample from
     // This gives us a nice curve
-    //****NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
-    //http://www.wolframalpha.com/input/?i=e%5E(-+1%2Ft)+from+30+to+1
-    int sample_space = (int)floor(exp(- 1 / T[0]) * (float)N[0]);
+    //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
+    int sample_space = (int)floor(exp(- 0.01 / T[0]) * (float)N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -153,17 +152,17 @@ __global__ static void tspSwap(unsigned int* city_one,
     if (proposal_dist < original_dist&&global_flag[0]<tid){
         global_flag[0] = tid;
         __syncthreads();
-	}
-	else if (global_flag[0]==0)
+	} 
+/*	else if (global_flag[0]==0)
 	{
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*70 / T[0]);
+        p = exp(-quotient*150 / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
             __syncthreads();
         }
-     }
+     }*/
     iter++;
     }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
@@ -194,9 +193,8 @@ __global__ static void tspSwap2(unsigned int* city_one,
 
 		// This is the maximum we can sample from
 		// This gives us a nice curve
-		// NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
-		//http://www.wolframalpha.com/input/?i=e%5E(-+70%2Ft)+from+30+to+1
-		int sample_space = (int)floor(exp(-70 / T[0]) * (float)N[0]);
+		//http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
+		int sample_space = (int)floor(exp(-0.005 / T[0]) * (float)N[0]);
 		// We need to set the min and max of the second city swap
 		int min_city_two = (city_one_swap - sample_space > 0) ?
 			city_one_swap - sample_space :
@@ -206,6 +204,7 @@ __global__ static void tspSwap2(unsigned int* city_one,
 			city_one_swap + sample_space :
 			(N[0] - 1);
 		myrandf = curand_uniform(&states[tid]);
+		myrandf = 0.8 + myrandf*0.2;
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
@@ -280,7 +279,7 @@ __global__ static void tspSwap2(unsigned int* city_one,
 			global_flag[0] = tid;
 			__syncthreads();
 		}
-		else if (global_flag[0] == 0)
+	/*	else if (global_flag[0] == 0)
 		{
 			quotient = proposal_dist / original_dist - 1;
 			p = exp(-quotient * 70 / T[0]);
@@ -288,8 +287,8 @@ __global__ static void tspSwap2(unsigned int* city_one,
 			if (p > myrandf && global_flag[0]<tid){
 				global_flag[0] = tid;
 				__syncthreads();
-			}
-		}
+			} 
+		}  */
 		iter++;
 	}
 	//seed[tid] = r_r;   //refresh the seed at the end of kernel
@@ -355,9 +354,7 @@ __global__ static void tspInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    // NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
-    //http://www.wolframalpha.com/input/?i=e%5E(-+1%2Ft)+from+30+to+1
-    int sample_space = (int)floor(exp(- 1 / T[0]) * N[0]);
+    int sample_space = (int)floor(exp(- 0.01 / T[0]) * N[0]);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -379,25 +376,6 @@ __global__ static void tspInsertion(unsigned int* city_one,
         city_two_swap = (N[0] - 2);
     // END NEW
 
-/*
-    int min_city_two = (city_one_swap - 100 > 0)?
-        city_one_swap - 100:
-           1;
-
-    int max_city_two = (city_one_swap + 100 < N[0] - 1)?
-        city_one_swap + 100:
-            (N[0] - 2);
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-    myrandf += min_city_two;
-    int city_two_swap = (int)truncf(myrandf);
-*/
-    // This shouldn't have to be here, but if either is larger or equal to N - 2
-    // We set it to N[0] - 2
-    if (city_one_swap > N[0] - 2)
-        city_one_swap = (N[0] - 2);
-    if (city_two_swap > N[0] - 2)
-        city_two_swap = (N[0] - 2);
 
     if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
     {
@@ -457,16 +435,16 @@ __global__ static void tspInsertion(unsigned int* city_one,
         global_flag[0] = tid;
         __syncthreads();
 	 }
-	 else if (global_flag[0]==0)
+/*	 else if (global_flag[0]==0) 
 	 {
-        quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*70 / T[0]);
+        quotient = proposal_dist/original_dist-1; 
+        p = exp(-quotient*150 / T[0]);
         myrandf = curand_uniform(&states[tid]);
-        if (p > myrandf && global_flag[0]<tid){
+        if (p > myrandf && global_flag[0]<tid){ 
             global_flag[0] = tid;
-            __syncthreads();
+            __syncthreads(); 
         }
-     }
+     }*/
     }
 }
 
@@ -493,9 +471,7 @@ __global__ static void tspInsertion2(unsigned int* city_one,
 
 
 	// This is the maximum we can sample from
-	// NOTE: If you replace the constant make a new graph at wolfram w.r.t. the temperature
-    //http://www.wolframalpha.com/input/?i=e%5E(-+70%2Ft)+from+30+to+1
-	int sample_space = (int)floor(exp(-70 / T[0]) * N[0]);
+	int sample_space = (int)floor(exp(-0.005 / T[0]) * N[0]);
 	// We need to set the min and max of the second city swap
 	int min_city_two = (city_one_swap - sample_space > 0) ?
 		city_one_swap - sample_space :
@@ -505,6 +481,7 @@ __global__ static void tspInsertion2(unsigned int* city_one,
 		city_one_swap + sample_space :
 		(N[0] - 2);
 	myrandf = curand_uniform(&states[tid]);
+	myrandf = 0.8 + myrandf*0.2;
 	myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 	myrandf += min_city_two;
 	int city_two_swap = (int)truncf(myrandf);
@@ -576,16 +553,16 @@ __global__ static void tspInsertion2(unsigned int* city_one,
 			global_flag[0] = tid;
 			__syncthreads();
 		}
-		else if (global_flag[0] == 0)
+/*		else if (global_flag[0] == 0)
 		{
 			quotient = proposal_dist / original_dist - 1;
-			p = exp(-quotient * 70 / T[0]);
+			p = exp(-quotient * 100 / T[0]);
 			myrandf = curand_uniform(&states[tid]);
 			if (p > myrandf && global_flag[0]<tid){
 				global_flag[0] = tid;
 				__syncthreads();
 			}
-		}
+		} */
 	}
 }
 
@@ -626,6 +603,9 @@ __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
 			if (xid == 0)
 				salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
         }
+		__syncthreads();
+		if (xid == 0)
+			global_flag[0];
     }
 }
 
@@ -659,7 +639,7 @@ __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
         {
            if (tid<2-indicator)
            {
-               if(tid==0)
+               if(tid==0) 
                 {
                     tmp = salesman_route[city_one[global_flag[0]]];
                 }
