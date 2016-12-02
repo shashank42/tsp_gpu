@@ -74,7 +74,7 @@ int main(){
 	// Keep the original loss for comparison pre/post algorithm
 	// SET THE LOSS HERE
 	float T[1], *T_g;
-	T[0] = 1;
+	T[0] = 20;
 	/*
 	Defining device variables:
 	city_swap_one_h/g: [integer(t_num)]
@@ -150,14 +150,14 @@ int main(){
 	time_t t_start, t_end;
 	t_start = time(NULL);
 
-	while (T[0] > 0.01/log(N))
+	while (T[0] > 1)
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
 		cudaCheckError();
 		i = 1;
 
-		while (i<5000){
+		while (i<50){
 
 			
 			tspSwap<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
@@ -182,17 +182,24 @@ int main(){
 				salesman_route_g, salesman_route_2g, global_flag_g);
                         cudaCheckError();
 			cudaThreadSynchronize();
+			tspInsertionUpdateTrip<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
 			cudaCheckError();
 			
-	//		iter += 1.00f;
-	//		T = T_start / log(iter);
-	//		if ((long int)iter % 50000 == 0)
-	//			printf("Iter: %ld  Temperature is %.6f\n", (long int)iter, T);
-			//T = 1;
 			i++;
 		}
-		T[0] = T[0] * 0.9999;
-		printf("Temperature: %f, Completed: %f   \n",T[0], 100 * (0.01/log(N))/T[0]);
+		cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+		cudaCheckError();
+		float optimized_loss = 0;
+		for (i = 0; i < N; i++){
+			optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+				(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
+				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
+				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+		}
+		
+		T[0] = T[0] * 0.99;
+        printf("T[0]: %f Optimized Loss is: %.6f  \n",T[0], optimized_loss);
 	}
 	//print time spent
 	t_end = time(NULL);

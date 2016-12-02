@@ -356,6 +356,9 @@ __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
 				salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
         }
     }
+    if(xid==0){
+        global_flag[0]=0;
+    }
 }
 
 __global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
