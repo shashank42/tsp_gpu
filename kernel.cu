@@ -74,8 +74,8 @@ int main(){
 	// Keep the original loss for comparison pre/post algorithm
 	// SET THE LOSS HERE
 	float T[2], *T_g;
-	T[0] = 100;
-	T[1] = 100;
+	T[0] = 20000;
+	T[1] = 20000;
 	/*
 	Defining device variables:
 	city_swap_one_h/g: [integer(t_num)]
@@ -156,7 +156,7 @@ int main(){
     float optimized_loss_restart = original_loss;
     long int iter = 0;
     
-	while (T[0] > 0.01/log(2*N))
+	while (T[0] > .6)//0.01/log(2*N))
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
@@ -165,7 +165,7 @@ int main(){
 
 		while (i<5000){
 
-			globalSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);  
@@ -230,7 +230,7 @@ int main(){
 		
 		iter++;
 		// Since we are doing a large number of iterations at each step
-		// We will restart if at the end of them we still have a worse loss
+		// We will restart if at every 200th if we have a worse loss
 		// We can base this off of something better later
 		if (optimized_loss < optimized_loss_restart){
 		    optimized_loss_restart = optimized_loss;
@@ -246,8 +246,7 @@ int main(){
 	cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
 	cudaCheckError();
 	
-	if (optimized_loss > optimized_loss_restart){
-	    for (i = 0; i <= N; i++
+	// We have to redefine optimized loss for some reason?
 	float optimized_loss = 0;
 	for (i = 0; i < N; i++){
 		optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
@@ -255,6 +254,21 @@ int main(){
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 	}
+	// If it's worse than the restart make the route the restart.
+	if (optimized_loss > optimized_loss_restart){
+	    for (i = 0; i <= N; i++){
+	        salesman_route[i] = salesman_route_restart[i];
+	    }
+	}
+	
+	optimized_loss = 0;
+	for (i = 0; i < N; i++){
+		optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+	}
+	
 	printf("Original Loss is:  %0.6f \n", original_loss); 
 	printf("Optimized Loss is: %.6f \n", optimized_loss);
 
