@@ -605,7 +605,7 @@ __global__ static void tspInsertionUpdate2(unsigned int* __restrict__ city_one,
         }
 		__syncthreads();
 		if (xid == 0)
-			global_flag[0];
+			global_flag[0] = 0 ;
     }
 }
 
