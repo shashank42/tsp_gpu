@@ -30,7 +30,7 @@ nvcc --optimize=5 --use_fast_math -arch=compute_35 kernel.cu -o tsp_cuda -lcuran
 
 int main(){
 
-	const char *tsp_name = "mona-lisa100K.tsp";
+	const char *tsp_name = "dsj1000.tsp";
 	read_tsp(tsp_name);
 	unsigned int N = meta->dim, *N_g;
 	// start counters for cities
@@ -150,7 +150,7 @@ int main(){
 	time_t t_start, t_end;
 	t_start = time(NULL);
 
-	while (T[0] > 0.01/log(N))
+	while (T[0] > 0.01/log(2*N))
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
@@ -158,7 +158,7 @@ int main(){
 
 		while (i<500){
 
-			cudaError_t e = cudaGetLastError();                                 \
+			cudaError_t e = cudaGetLastError();                                 
 			if (e != cudaSuccess) {
 				printf(" Temperature was %.6f on failure\n", T[0]);
 			}
@@ -167,13 +167,26 @@ int main(){
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);
-			cudaCheckError();
+			cudaCheckError(); 
 			cudaThreadSynchronize();
 			cudaCheckError();
 			tspSwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
 			cudaThreadSynchronize();
+			cudaCheckError();
+			tspSwap2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspSwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, global_flag_g);
+			cudaCheckError();
+			cudaThreadSynchronize();
+
 			cudaCheckError();
 			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
@@ -189,6 +202,21 @@ int main(){
                         cudaCheckError();
 			cudaThreadSynchronize();
 			cudaCheckError();
+
+			tspInsertion2 << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
+			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			tspInsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			cudaThreadSynchronize();
+			cudaCheckError();
 			
 	//		iter += 1.00f;
 	//		T = T_start / log(iter);
@@ -197,6 +225,16 @@ int main(){
 			//T = 1;
 			i++;
 		}
+		cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
+		cudaCheckError();
+		float optimized_loss = 0;
+		for (i = 0; i < N; i++){
+			optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+				(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
+				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
+				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+		}
+		printf("Optimized Loss is: %.6f \n", optimized_loss);
 		T[0] = T[0] * 0.99;
 		printf("T[0] %f  \n",T[0]);
 	}
@@ -212,7 +250,7 @@ int main(){
 			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
-	}
+	} 
 	printf("Optimized Loss is: %.6f \n", optimized_loss);
 
 	// Write the best trip to CSV
