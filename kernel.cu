@@ -154,37 +154,31 @@ int main(){
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
+		cudaCheckError();
 		i = 1;
 
-		while (i<500){
+		while (i<5000){
 
-			cudaError_t e = cudaGetLastError();                                 \
-			if (e != cudaSuccess) {
-				printf(" Temperature was %.6f on failure\n", T[0]);
-			}
-			cudaCheckError();
-			tspSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+			
+			tspSwap<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states);
 			cudaCheckError();
-			cudaThreadSynchronize();
-			cudaCheckError();
-			tspSwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+			tspSwapUpdate<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g);
 			cudaCheckError();
 			cudaThreadSynchronize();
-			cudaCheckError();
 			tspInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g, N_g,
 				states); 
 			cudaCheckError();
 			cudaThreadSynchronize();
+			tspInsertionUpdateTrip<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
-			tspInsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			tspInsertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+			cudaThreadSynchronize();
+			tspInsertionUpdate2<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g);
                         cudaCheckError();
 			cudaThreadSynchronize();
@@ -197,8 +191,8 @@ int main(){
 			//T = 1;
 			i++;
 		}
-		T[0] = T[0] * 0.99;
-		printf("T[0] %f  \n",T[0]);
+		T[0] = T[0] * 0.9999;
+		printf("Temperature: %f, Completed: %f   \n",T[0], 100 * (0.01/log(N))/T[0]);
 	}
 	//print time spent
 	t_end = time(NULL);
