@@ -17,10 +17,12 @@
 
 
 #define t_num 1024
-#define GRID_SIZE 8192
+#define GRID_SIZE 131072
 
 /*
 For more samples define GRID_SIZE as a multiple of t_num such as 512000, 2048000, or the (max - 1024) grid size 2147482623
+A good grid size is the number of SM's you have times the number of blocks each can take in times max threads per block
+I have 8 cores that can hold 16 blocks of 1024 cores so my best is 131072
 Some compiler options that can speed things up
 --use_fast_math
 --optimize=5
@@ -47,17 +49,18 @@ int main(){
 	exit(0);
 	*/
 	unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
-    for (i = 0; i <= N; i++)
-		salesman_route[i] = i;
-    read_trip(trip_name, salesman_route);
+
+    
     /*
 	// just make one inital guess route, a simple linear path
 	for (i = 0; i <= N; i++)
 		salesman_route[i] = i;
-
 	// Set the starting and end points to be the same
 	salesman_route[N] = salesman_route[0];
     */
+    // Function to read in route already 
+    read_trip(trip_name, salesman_route);
+    
 	/*     don't need it when importing data from files
 	// initialize the coordinates and sequence
 	for(i = 0; i < N; i++){
@@ -176,7 +179,7 @@ int main(){
 		cudaCheckError();
 		i = 1;
 
-		while (i<500){
+		while (i<1000){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      location_g, salesman_route_g,
@@ -241,12 +244,10 @@ int main(){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
-		T[0] = T[0] * 0.999;
+		T[0] = T[0] * 0.9999;
 		
 		iter++;
-		// Since we are doing a large number of iterations at each step
-		// We will restart if at every 200th if we have a worse loss
-		// We can base this off of something better later
+		// This grabs the best trip overall
 		if (optimized_loss < optimized_loss_restart){
 		    optimized_loss_restart = optimized_loss;
 		    InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);

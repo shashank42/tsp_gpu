@@ -32,17 +32,19 @@ __global__ static void globalInsertion(unsigned int* city_one,
 
     int iter = 0;
     while (global_flag[0] == 0 && iter < 50){
+    
+    // This is the maximum we can sample from
+    int sample_space = (int)floor(exp(- (T[1]) / T[0]) * N[0] + 2);
+    
       // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
     myrandf += 1.0;
+    myrandf += curand_normal(&states[tid]) * sample_space;
     int city_one_swap = (int)truncf(myrandf);
 
-
-
-    // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- (T[1]) / T[0]) * N[0] + 2);
+/*
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -54,6 +56,8 @@ __global__ static void globalInsertion(unsigned int* city_one,
     myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
     myrandf += min_city_two;
+ */
+    myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
     int city_two_swap = (int)truncf(myrandf);
 
     // This shouldn't have to be here, but if either is larger or equal to N - 2
@@ -124,9 +128,10 @@ __global__ static void globalInsertion(unsigned int* city_one,
             __syncthreads();
         } else if (global_flag[0]==0) {
         
-            quotient = proposal_dist - original_dist; 
-            p = exp(-quotient / T[0]);
+            quotient = proposal_dist/original_dist-1; 
+            p = exp(-quotient * 150 / T[0]);
             myrandf = curand_uniform(&states[tid]);
+            myrandf *= (1.0 - 0.9999999999999999);
             if (p > myrandf && global_flag[0]<tid){ 
                 global_flag[0] = tid;
                 __syncthreads(); 
@@ -150,17 +155,19 @@ __global__ static void localInsertion(unsigned int* city_one,
     int iter = 0;
 
     while (global_flag[0] == 0 && iter < 50){
+    
+    // This is the maximum we can sample from
+	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 2);
+	
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 	float myrandf = curand_uniform(&states[tid]);
 	myrandf *= ((float)(N[0] - 1) - 1.0 + 0.9999999999999999);
 	myrandf += 1.0;
+	myrandf += curand_normal(&states[tid]) * sample_space;
 	int city_one_swap = (int)truncf(myrandf);
 
-
-
-	// This is the maximum we can sample from
-	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 2);
+/*
 	// We need to set the min and max of the second city swap
 	int min_city_two = (city_one_swap - sample_space > 0) ?
 		city_one_swap - sample_space :
@@ -173,6 +180,8 @@ __global__ static void localInsertion(unsigned int* city_one,
 	myrandf = 0.8 + myrandf*0.2;
 	myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 	myrandf += min_city_two;
+*/
+	myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
 	int city_two_swap = (int)truncf(myrandf);
 
 	// This shouldn't have to be here, but if either is larger or equal to N - 2
@@ -243,9 +252,10 @@ __global__ static void localInsertion(unsigned int* city_one,
 			__syncthreads();
 		} else if (global_flag[0] == 0){
 		
-			quotient = proposal_dist - original_dist;
-			p = exp(-quotient / T[0]);
+			quotient = proposal_dist / original_dist - 1;
+			p = exp(-quotient * 100 / T[0]);
 			myrandf = curand_uniform(&states[tid]);
+            myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){
 				global_flag[0] = tid;
 				__syncthreads();
