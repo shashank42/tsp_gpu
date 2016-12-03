@@ -161,6 +161,64 @@ void read_tsp(const char *tsp_file_name){
 }
 // END READ TSP    
 
+
+/*****************************
+* Desc: Reads in csv files of trips for a starting point
+*
+* Input: 
+* - trip_file_name [const char()]
+*  - The name of the tsp file to retrieve data from
+* 
+* Based on: https://github.com/bishma-stornelli/CVRP-AOC/blob/master/TSP-TEST.V0.9/instance.c
+*******************************/
+const char* getfield(char* line, int num )
+{
+    const char* tok;
+    for (tok = strtok(line, ",");tok && *tok;tok = strtok(NULL, ",\n"))
+    {
+        if (!num--)
+        return tok;
+    }
+    return NULL;
+}
+
+void read_trip(const char *trip_file_name, unsigned int *salesman_route){
+    FILE* stream = fopen(trip_file_name, "r");
+    if (stream == NULL){
+        printf("Failure to find stream");
+        exit(EXIT_FAILURE);
+    }
+    char line[1024];
+    if (fscanf(stream,"%s", line) <= 0) printf("Reading file failed at first line\n");
+    if (fgets(line, 1024, stream) == NULL) printf("Reading file failed at first line\n");
+    int i = 0;
+    while (fgets(line, 1024, stream))
+    {
+        char* tmp = strdup(line);
+        salesman_route[i] = atoi(getfield(tmp, 0));
+        // NOTE strtok clobbers tmp
+        free(tmp);
+        i++;
+    }
+    fclose(stream);
+}
+
+
+/*
+void read_trip(const char *trip_file_name, unsigned int *salesman_route, int N){
+    FILE * trip_file;
+    char buf[LINE_BUF_LEN];
+    trip_file = fopen(trip_file_name, "r");
+    if (trip_file == NULL)
+        exit(EXIT_FAILURE);
+    if (fscanf(trip_file,"%s", buf) <= 0) printf("Reading file failed at first line\n");
+    for (int i = 0; i < N + 1; i++)
+        if(fscanf(trip_file,"%d %f %f", &location[i].id, &location[i].x, &location[i].y) <=0)
+	      printf("Reading failed while scanning coordinates\n");
+    fclose(trip_file);
+}
+*/
+
  /* Function to generate random numbers in interval
  
  input:
@@ -195,16 +253,6 @@ void read_tsp(const char *tsp_file_name){
 
     return min + (r / buckets);
 }
-
-/*****************************
-* Desc: Reads in files that are in the tsp format
-*
-* Input: 
-* - tsp_file_name [const char()]
-*  - The name of the tsp file to retrieve data from
-* 
-* Based on: https://github.com/bishma-stornelli/CVRP-AOC/blob/master/TSP-TEST.V0.9/instance.c
-*******************************/
 
 
 
