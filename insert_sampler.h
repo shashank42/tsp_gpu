@@ -42,7 +42,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
 
 
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- (T[1]/8) / T[0]) * N[0]);
+    int sample_space = (int)floor(exp(- (T[1]) / T[0]) * N[0] + 2);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -119,12 +119,10 @@ __global__ static void globalInsertion(unsigned int* city_one,
                          (location[trip_city_one_pre].y - location[trip_city_one_post].y);
         //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
         //because if I pick the small one, I have to tell whether the flag is 0
-        if (proposal_dist < original_dist&&global_flag[0]<tid){
+        if (proposal_dist < original_dist && global_flag[0] == 0){
             global_flag[0] = tid;
-            
-        }
-        __syncthreads();
-        if (global_flag[0]==0) {
+            __syncthreads();
+        } else if (global_flag[0]==0) {
         
             quotient = proposal_dist - original_dist; 
             p = exp(-quotient / T[0]);
@@ -162,7 +160,7 @@ __global__ static void localInsertion(unsigned int* city_one,
 
 
 	// This is the maximum we can sample from
-	int sample_space = (int)floor(exp(- (T[1]/2) / T[0]) * N[0]);
+	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 2);
 	// We need to set the min and max of the second city swap
 	int min_city_two = (city_one_swap - sample_space > 0) ?
 		city_one_swap - sample_space :
@@ -240,13 +238,11 @@ __global__ static void localInsertion(unsigned int* city_one,
 			(location[trip_city_one_pre].y - location[trip_city_one_post].y);
 		//picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
 		//because if I pick the small one, I have to tell whether the flag is 0
-        if (proposal_dist < original_dist&&global_flag[0]<tid){
+        if (proposal_dist < original_dist && global_flag[0] == 0){
 			global_flag[0] = tid;
-			
-		}
-		__syncthreads();
-		if (global_flag[0] == 0)
-		{
+			__syncthreads();
+		} else if (global_flag[0] == 0){
+		
 			quotient = proposal_dist - original_dist;
 			p = exp(-quotient / T[0]);
 			myrandf = curand_uniform(&states[tid]);
@@ -302,58 +298,6 @@ __global__ static void InsertionUpdate(unsigned int* __restrict__ city_one,
 			global_flag[0];
     }
 }
-
-__global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
-                           unsigned int* __restrict__ city_two,
-                           unsigned int* salesman_route,
-                           volatile unsigned int *global_flag){
-    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int tmp;
-    int indicator;
-    if (global_flag[0] != 0){
-        indicator=city_one[global_flag[0]]-city_two[global_flag[0]];
-        if(indicator>0)
-        {
-            if (tid<indicator)
-            {
-                if(tid==0)
-                {
-                    tmp = salesman_route[city_one[global_flag[0]]];
-                }
-                else
-
-                {
-                    tmp = salesman_route[city_two[global_flag[0]]+tid];
-                }
-                __syncthreads();
-                salesman_route[tid+city_two[global_flag[0]]+1]=tmp;
-            }
-        }
-        if(indicator<0)
-        {
-           if (tid<2-indicator)
-           {
-               if(tid==0) 
-                {
-                    tmp = salesman_route[city_one[global_flag[0]]];
-                }
-                else
-                {
-                    tmp = salesman_route[city_two[global_flag[0]]-tid+2];
-                }
-                __syncthreads();
-                salesman_route[city_two[global_flag[0]]+1-tid]=tmp;
-           }
-        }
-    }
-    if(tid==0)
-    {
-        global_flag[0]=0;
-    }
-    __syncthreads();
-}
-
-
 
 
 #endif // _TSP_INSERT_H_

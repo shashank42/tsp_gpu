@@ -34,7 +34,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
-    while (global_flag[0] == 0 && iter < 50){
+    while (global_flag[0] == 0 && iter < 100){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
@@ -46,8 +46,8 @@ __global__ static void globalSwap(unsigned int* city_one,
 
     // This is the maximum we can sample from
     // This gives us a nice curve
-    //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-    int sample_space = (int)floor(exp(- (T[1]/8) / T[0]) * (float)N[0]);
+    //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
+    int sample_space = (int)floor(exp(- (T[1]) / T[0]) * (float)N[0] + 1);
     // We need to set the min and max of the second city swap
     int min_city_two = (city_one_swap - sample_space > 0)?
         city_one_swap - sample_space:
@@ -127,13 +127,10 @@ __global__ static void globalSwap(unsigned int* city_one,
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is 0
-    if (proposal_dist < original_dist&&global_flag[0]<tid){
+    if (proposal_dist < original_dist && global_flag[0] == 0){
         global_flag[0] = tid;
-       
-	}
-	 __syncthreads(); 
-	if (global_flag[0]==0)
-	{
+        __syncthreads(); 
+	} else if (global_flag[0]==0){
         quotient = proposal_dist - original_dist;
         p = exp(-quotient / T[0]);
         myrandf = curand_uniform(&states[tid]);
@@ -159,7 +156,7 @@ __global__ static void localSwap(unsigned int* city_one,
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int iter = 0;
 	// Run until either global flag is zero and we do 100 iterations is false.
-	while (global_flag[0] == 0 && iter < 50){
+	while (global_flag[0] == 0 && iter < 100){
 		// Generate the first city
 		// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 		// FIXME: This isn't hitting 99,9999???
@@ -173,7 +170,7 @@ __global__ static void localSwap(unsigned int* city_one,
 		// This is the maximum we can sample from
 		// This gives us a nice curve
 		//http://www.wolframalpha.com/input/?i=e%5E(-+2%2Ft)+from+30+to+1
-		int sample_space = (int)floor(exp(- (T[1]/2) / T[0]) * (float)N[0]);
+		int sample_space = (int)floor(exp(- (T[1] * 2) / T[0]) * (float)N[0] + 1);
 		// We need to set the min and max of the second city swap
 		int min_city_two = (city_one_swap - sample_space > 0) ?
 			city_one_swap - sample_space :
@@ -254,13 +251,10 @@ __global__ static void localSwap(unsigned int* city_one,
 
 		//picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
 		//because if I pick the small one, I have to tell whether the flag is 0
-		if (proposal_dist < original_dist&&global_flag[0]<tid){
+		if (proposal_dist < original_dist && global_flag[0] == 0){
 			global_flag[0] = tid;
-			
-		}
-		__syncthreads();
-		if (global_flag[0] == 0)
-		{
+			__syncthreads();
+		} else if (global_flag[0] == 0){
 			quotient = proposal_dist - original_dist;
 			p = exp(-quotient / T[0]);
 			myrandf = curand_uniform(&states[tid]);
@@ -271,7 +265,6 @@ __global__ static void localSwap(unsigned int* city_one,
 		}  
 		iter++;
 	}
-	//seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
 
 __global__ static void SwapUpdate(unsigned int* __restrict__ city_one,
