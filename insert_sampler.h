@@ -34,39 +34,23 @@ __global__ static void globalInsertion(unsigned int* city_one,
     while (global_flag[0] == 0 && iter < 50){
     
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- (T[1]) / T[0]) * N[0] + 2);
+    int sample_space = (int)floor(exp(- (T[1] * 2) / T[0]) * N[0] + 2);
     
-      // Generate the first city
+    // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
     myrandf += 1.0;
     myrandf += curand_normal(&states[tid]) * sample_space;
     int city_one_swap = (int)truncf(myrandf);
-
-/*
-    // We need to set the min and max of the second city swap
-    int min_city_two = (city_one_swap - sample_space > 0)?
-        city_one_swap - sample_space:
-           1;
-
-    int max_city_two = (city_one_swap + sample_space < N[0] - 1)?
-        city_one_swap + sample_space:
-            (N[0] - 2);
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-    myrandf += min_city_two;
- */
+    if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 2;
+    if (city_one_swap <= 0)    city_one_swap += -(city_one_swap)/N[0] * N[0] + 2;
+    
+    // Gen second city
     myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
-    int city_two_swap = (int)truncf(myrandf);
-
-    // This shouldn't have to be here, but if either is larger or equal to N - 2
-    // We set it to N[0] - 2
-    if (city_one_swap > N[0] - 2)
-        city_one_swap = (N[0] - 2);
-    if (city_two_swap > N[0] - 2)
-        city_two_swap = (N[0] - 2);
-    // END NEW
+	int city_two_swap = (int)truncf(myrandf);
+	if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 2;
+    if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 2;
 
 
     if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
@@ -166,31 +150,13 @@ __global__ static void localInsertion(unsigned int* city_one,
 	myrandf += 1.0;
 	myrandf += curand_normal(&states[tid]) * sample_space;
 	int city_one_swap = (int)truncf(myrandf);
-
-/*
-	// We need to set the min and max of the second city swap
-	int min_city_two = (city_one_swap - sample_space > 0) ?
-		city_one_swap - sample_space :
-		1;
-
-	int max_city_two = (city_one_swap + sample_space < N[0] - 1) ?
-		city_one_swap + sample_space :
-		(N[0] - 2);
-	myrandf = curand_uniform(&states[tid]);
-	myrandf = 0.8 + myrandf*0.2;
-	myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-	myrandf += min_city_two;
-*/
-	myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
+    if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 2;
+    if (city_one_swap <= 0) city_one_swap += -(city_one_swap)/N[0] * N[0] + 2;
+    
+    myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
 	int city_two_swap = (int)truncf(myrandf);
-
-	// This shouldn't have to be here, but if either is larger or equal to N - 2
-	// We set it to N[0] - 2
-	if (city_one_swap > N[0] - 2)
-		city_one_swap = (N[0] - 2);
-	if (city_two_swap > N[0] - 2)
-		city_two_swap = (N[0] - 2);
-	// END NEW
+	if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 2;
+    if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 2;
 
 
 	if (city_two_swap != (N[0] - 1) && city_two_swap != city_one_swap && city_two_swap != city_one_swap - 1)

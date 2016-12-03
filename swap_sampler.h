@@ -48,28 +48,13 @@ __global__ static void globalSwap(unsigned int* city_one,
     myrandf += 1.0;
     myrandf += curand_normal(&states[tid]) * sample_space;
     int city_one_swap = (int)truncf(myrandf);
-/*
-    // We need to set the min and max of the second city swap
-    int min_city_two = (city_one_swap - sample_space > 0)?
-        city_one_swap - sample_space:
-           1;
-
-    int max_city_two = (city_one_swap + sample_space < N[0])?
-        city_one_swap + sample_space:
-            (N[0] - 1);
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-    myrandf += min_city_two;
-*/
+    if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 1;
+    if (city_one_swap <= 0)    city_one_swap += -(city_one_swap)/N[0] * N[0] + 1;
     myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
+    
     int city_two_swap = (int)truncf(myrandf);
-
-    // This shouldn't have to be here, but if either is larger or equal to N
-    // We set it to N[0] - 1
-    if (city_one_swap >= N[0])
-        city_one_swap = (N[0] - 1);
-    if (city_two_swap >= N[0])
-        city_two_swap = (N[0] - 1);
+    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 1;
+    if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 1;
 
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
@@ -175,32 +160,13 @@ __global__ static void localSwap(unsigned int* city_one,
 		myrandf += 1.0;
 		myrandf += curand_normal(&states[tid]) * sample_space;
 		int city_one_swap = (int)truncf(myrandf);
-
-
-
-/*
-		// We need to set the min and max of the second city swap
-		int min_city_two = (city_one_swap - sample_space > 0) ?
-			city_one_swap - sample_space :
-			1;
-
-		int max_city_two = (city_one_swap + sample_space < N[0]) ?
-			city_one_swap + sample_space :
-			(N[0] - 1);
-		myrandf = curand_uniform(&states[tid]);
-		myrandf = 0.8 + myrandf*0.2;
-		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-		myrandf += min_city_two;
-*/
+        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 1;
+        if (city_one_swap <= 0) city_one_swap += -(city_one_swap)/N[0] * N[0] + 1;
+        
         myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
 		int city_two_swap = (int)truncf(myrandf);
-
-		// This shouldn't have to be here, but if either is larger or equal to N
-		// We set it to N[0] - 1
-		if (city_one_swap >= N[0])
-			city_one_swap = (N[0] - 1);
-		if (city_two_swap >= N[0])
-			city_two_swap = (N[0] - 1);
+		if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 1;
+        if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 1;
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
