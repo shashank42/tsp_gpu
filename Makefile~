@@ -1,9 +1,0 @@
-
-
-all: cipher_name
-
-clean:
-	rm -f tsp_cuda
-	
-debug:
-	gdb --batch --ex run --ex bt --ex q --args ./cipher_name
