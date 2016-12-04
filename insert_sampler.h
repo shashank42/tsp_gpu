@@ -113,7 +113,10 @@ __global__ static void globalInsertion(unsigned int* city_one,
         } else if (global_flag[0]==0) {
         
             quotient = proposal_dist / original_dist - 1;
-            p = exp(-quotient * 150 / T[0]);
+            p = exp(-(quotient * T[1]/2) / T[0]);
+            // You can change the constant to whatever you would like
+			// But you should check that the graph looks nice
+			// http://www.wolframalpha.com/input/?i=e%5E(-(x*5000)%2Ft)+x+%3D+0+to+1+and+t+%3D+0+to+10000
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
             if (p > myrandf && global_flag[0]<tid){ 
@@ -219,7 +222,10 @@ __global__ static void localInsertion(unsigned int* city_one,
 		} else if (global_flag[0] == 0){
 		
 			quotient = proposal_dist / original_dist - 1;
-			p = exp(-quotient * 100 / T[0]);
+			// You can change the constant to whatever you would like
+			// But you should check that the graph looks nice
+			// http://www.wolframalpha.com/input/?i=e%5E(-(x*5000)%2Ft)+x+%3D+0+to+1+and+t+%3D+0+to+10000
+			p = exp(-(quotient * T[1]/2) / T[0]);
 			myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){
@@ -270,7 +276,6 @@ __global__ static void InsertionUpdate(unsigned int* __restrict__ city_one,
         }
 		__syncthreads();
     }
-    __threadfence();
 }
 
 __global__ static void InsertionUpdateEnd(unsigned int* __restrict__ city_one,
@@ -286,23 +291,20 @@ __global__ static void InsertionUpdateEnd(unsigned int* __restrict__ city_one,
       2. Shift everything between city one and city two up or down, depending on city one < city two
       3. Set city two's old position to city one
     */
-    if (global_flag[0] != 0){
-        unsigned int city_one_swap = city_one[global_flag[0]];
-        unsigned int city_two_swap = city_two[global_flag[0]];
+    if (xid == 0){
+        if (global_flag[0] != 0){
+            unsigned int city_one_swap = city_one[global_flag[0]];
+            unsigned int city_two_swap = city_two[global_flag[0]];
 
-        if (city_one_swap < city_two_swap){
-			if (xid == 0)
-				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
-        } else {
-        
-            if (xid == 0)
+            if (city_one_swap < city_two_swap){
+			    salesman_route[city_two_swap] = salesman_route2[city_one_swap];
+            } else {
 		        salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
-            
-
-        }
+            }
 		__syncthreads();
+        }
+        global_flag[0] = 0;
     }
-    __threadfence();
 }
 
 

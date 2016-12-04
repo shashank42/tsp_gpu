@@ -131,7 +131,10 @@ __global__ static void globalSwap(unsigned int* city_one,
         __threadfence();
 	} else if (global_flag[0]==0){
         quotient = proposal_dist / original_dist - 1;
-        p = exp(-quotient * 150 / T[0]);
+        // You can change the constant to whatever you would like
+		// But you should check that the graph looks nice
+		// http://www.wolframalpha.com/input/?i=e%5E(-(x*5000)%2Ft)+x+%3D+0+to+1+and+t+%3D+0+to+10000
+        p = exp(-(quotient * T[1]/2) / T[0]);
         myrandf = curand_uniform(&states[tid]);
         myrandf *= (1.0 - 0.9999999999999999);
         if (p > myrandf && global_flag[0]<tid){
@@ -243,7 +246,10 @@ __global__ static void localSwap(unsigned int* city_one,
 			__syncthreads();
 		} else if (global_flag[0] == 0){
 			quotient = proposal_dist / original_dist - 1;
-            p = exp(-quotient * 100 / T[0]);
+			// You can change the constant to whatever you would like
+			// But you should check that the graph looks nice
+			// http://www.wolframalpha.com/input/?i=e%5E(-(x*5000)%2Ft)+x+%3D+0+to+1+and+t+%3D+0+to+10000
+            p = exp(-(quotient * T[1]/2) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){

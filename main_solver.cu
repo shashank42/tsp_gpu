@@ -58,8 +58,8 @@ int main(int argc, char *argv[]){
 
     // Get loss
     float T[2], *T_g;
-	T[0] = 1000;
-	T[1] = 1000;
+	T[0] = 10000;
+	T[1] = 10000;
 	float decay = 0.99;
     // Get starting trip
 	for (i = 0; i <= N; i++)
@@ -319,7 +319,7 @@ int main(int argc, char *argv[]){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
-		//T[0] = T[0] * decay;
+		T[0] = T[0] * decay;
 		
 		iter++;
 		// This grabs the best trip overall
