@@ -127,8 +127,17 @@ $(document).ready(function () {
 <p>The code has so far only been tested on trip sizes no larger than 100,000. But because of an efficient schema to calculate the distances necessary in a proposal step (paper to be included explaining this later) the algorithm should be capable of handle trip sizes in the millions.</p>
 <p>Cloning this repo and typing <code>make</code> will create the tsp_cuda program which can be accessed through something like</p>
 <pre><code>./tsp_cuda mona-lisa100K  -temp= 10000 -decay= .999</code></pre>
-<p>Inputs: (Required) input_file.tsp: [char()] - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over. (Optional) -trip: [char()] - The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. (Optional) -temp: [float(1)] - The initial starting temperature. Default is 10000 (Optional) -decay: [float(1)]<br />
-- The decay rate for the annealing schedule. Default is .99</p>
+<p>Inputs:</p>
+<pre><code>(Required)
+input_file.tsp: [char()] 
+ - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over.
+ (Optional Flags)
+-trip: [char()] 
+  The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. 
+-temp: [float(1)] 
+  The initial starting temperature. Default is 10000 
+-decay: [float(1)]  
+  The decay rate for the annealing schedule. Default is .99 </code></pre>
 <p>The program will output a csv of the best trip found throughout the simulated annealing process.</p>
 <p>Several tsp datasets are given, but you can download more of them at the <a href="http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/">TSPLIB</a> library and the University of Waterloo’s <a href="http://www.math.uwaterloo.ca/tsp/data/">TSP Data</a> webpage.</p>
 <p>This project is still very much in beta, but running the algorithm on the classic <a href="http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html">mona lisa</a> problem for 25 minutes yielded a trip length of 151,081,189,376 and made a very nice picture which you can also generate with the given jupyter notebook.</p>

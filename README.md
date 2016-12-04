@@ -15,15 +15,21 @@ Cloning this repo and typing `make` will create the tsp_cuda program which can b
 ./tsp_cuda mona-lisa100K  -temp= 10000 -decay= .999
 ```
 
+
 Inputs: 
-(Required) input_file.tsp: [char()] 
- - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over. 
-(Optional) -trip: [char()] 
- - The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. 
-(Optional) -temp: [float(1)] 
- - The initial starting temperature. Default is 10000 
-(Optional) -decay: [float(1)]  
- - The decay rate for the annealing schedule. Default is .99 
+
+```
+(Required)
+input_file.tsp: [char()] 
+ - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over.
+ (Optional Flags)
+-trip: [char()] 
+  The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. 
+-temp: [float(1)] 
+  The initial starting temperature. Default is 10000 
+-decay: [float(1)]  
+  The decay rate for the annealing schedule. Default is .99 
+```
 
 The program will output a csv of the best trip found throughout the simulated annealing process.
 
