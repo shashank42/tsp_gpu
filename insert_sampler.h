@@ -237,7 +237,9 @@ __global__ static void InsertionUpdateTrip(unsigned int* salesman_route, unsigne
     unsigned int xid = blockIdx.x * blockDim.x + threadIdx.x;
     if (xid < N[0])
         salesman_route2[xid] = salesman_route[xid];
+    __threadfence();
 }
+
 
 __global__ static void InsertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
@@ -260,21 +262,50 @@ __global__ static void InsertionUpdate(unsigned int* __restrict__ city_one,
             if (xid >= city_one_swap && xid < city_two_swap){
                 salesman_route[xid] = salesman_route2[xid + 1];
             }
-			if (xid == 0)
-				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
         } else {
             if (xid > city_two_swap+1 && xid <= city_one_swap){
                 salesman_route[xid] = salesman_route2[xid - 1];
             }
-			if (xid == 0)
-				salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
+
         }
 		__syncthreads();
-		if (xid == 0)
-			global_flag[0] = 0;
     }
     __threadfence();
 }
+
+__global__ static void InsertionUpdateEnd(unsigned int* __restrict__ city_one,
+                           unsigned int* __restrict__ city_two,
+                           unsigned int* salesman_route,
+                           unsigned int* salesman_route2,
+                           volatile unsigned int *global_flag){
+
+    // each thread is a position in the salesman's trip
+    const int xid = blockIdx.x * blockDim.x + threadIdx.x;
+    /*
+      1. Save city one
+      2. Shift everything between city one and city two up or down, depending on city one < city two
+      3. Set city two's old position to city one
+    */
+    if (global_flag[0] != 0){
+        unsigned int city_one_swap = city_one[global_flag[0]];
+        unsigned int city_two_swap = city_two[global_flag[0]];
+
+        if (city_one_swap < city_two_swap){
+			if (xid == 0)
+				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
+        } else {
+        
+            if (xid == 0)
+		        salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
+            
+
+        }
+		__syncthreads();
+    }
+    __threadfence();
+}
+
+
 
 
 #endif // _TSP_INSERT_H_

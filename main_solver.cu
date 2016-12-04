@@ -210,7 +210,7 @@ int main(int argc, char *argv[]){
 		cudaCheckError();
 		i = 1;
         kk = 1;
-		while (i<5000){
+		while (i<1000){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      location_g, salesman_route_g,
@@ -231,7 +231,8 @@ int main(int argc, char *argv[]){
 			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      salesman_route_g, global_flag_g);
 			cudaCheckError();
-			
+		
+			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			globalInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                           location_g, salesman_route_g,
@@ -239,10 +240,11 @@ int main(int argc, char *argv[]){
 				                                                           states); 
 			cudaCheckError();
 			
-			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
 			InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                         salesman_route_g, salesman_route_2g,
+				                                                         global_flag_g);
+		    cudaCheckError();
+            InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                         salesman_route_g, salesman_route_2g,
 				                                                         global_flag_g);
             cudaCheckError();
@@ -264,6 +266,13 @@ int main(int argc, char *argv[]){
 				                                                          global_flag_g);
 			cudaCheckError();
 			
+					    
+            InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                         salesman_route_g, salesman_route_2g,
+				                                                         global_flag_g);
+			cudaCheckError();
+			
+				                                                         
 			if (T[0] < 1){
 			 while(kk < 5000){
 			     localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
@@ -291,6 +300,10 @@ int main(int argc, char *argv[]){
 				                                                          salesman_route_g, salesman_route_2g,
 				                                                          global_flag_g);
 			     cudaCheckError();
+                 InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                         salesman_route_g, salesman_route_2g,
+				                                                         global_flag_g);
+			    cudaCheckError();
 			     kk++;
 			 }
 			}
@@ -306,7 +319,7 @@ int main(int argc, char *argv[]){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
-		T[0] = T[0] * decay;
+		//T[0] = T[0] * decay;
 		
 		iter++;
 		// This grabs the best trip overall
@@ -354,7 +367,7 @@ int main(int argc, char *argv[]){
 
 	// Write the best trip to CSV
 	FILE *best_trip;
-	const char *filename = concat(tsp_name,".csv");
+	const char *filename = concat(argv[1],"_trip.csv");
 	best_trip = fopen(filename, "w+");
 	fprintf(best_trip, "location,coordinate_x,coordinate_y\n");
 	for (i = 0; i < N + 1; i++){
