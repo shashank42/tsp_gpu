@@ -55,6 +55,17 @@ __global__ static void globalSwap(unsigned int* city_one,
     int city_two_swap = (int)truncf(myrandf);
     if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 1;
     if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 1;
+    
+    if (city_one_swap >= N[0])
+        city_one_swap = N[0] - 1;
+    if (city_one_swap <= 0)
+        city_one_swap = 1;
+        
+    if (city_two_swap >= N[0])
+        city_two_swap = N[0] - 1;
+    if (city_two_swap <= 0)
+        city_two_swap = 1;
+
 
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
@@ -119,8 +130,8 @@ __global__ static void globalSwap(unsigned int* city_one,
         global_flag[0] = tid;
         __syncthreads(); 
 	} else if (global_flag[0]==0){
-        quotient = proposal_dist / original_dist - 1;
-        p = exp(-quotient * 150 / T[0]);
+        quotient = proposal_dist - original_dist;
+        p = exp(-quotient / T[0]);
         myrandf = curand_uniform(&states[tid]);
         myrandf *= (1.0 - 0.9999999999999999);
         if (p > myrandf && global_flag[0]<tid){
@@ -231,8 +242,8 @@ __global__ static void localSwap(unsigned int* city_one,
 			global_flag[0] = tid;
 			__syncthreads();
 		} else if (global_flag[0] == 0){
-			quotient = proposal_dist / original_dist - 1;
-			p = exp(-quotient * 150 / T[0]);
+			quotient = proposal_dist - original_dist ;
+			p = exp(-quotient  / T[0]);
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){
@@ -261,6 +272,7 @@ __global__ static void SwapUpdate(unsigned int* __restrict__ city_one,
         }
     }
     __syncthreads();
+    __threadfence();
 }
 
 #endif // _TSP_SWAP_H_

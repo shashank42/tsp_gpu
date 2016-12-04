@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
 	coordinates *location_g;
 	read_tsp(tsp_name);
     unsigned int N = meta->dim, *N_g;
-	unsigned int i;
+	unsigned int i, kk;
 	unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
 
     // Get loss
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]){
 	dim3 blocksPerTripGrid((N / t_num) + 1, 1, 1);
 	dim3 threadsPerBlock(t_num, 1, 1);
 
-	// Trying out random gen in cuda
+	
 	curandState_t* states;
 
 	/* allocate space on the GPU for the random states */
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
 		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
 		cudaCheckError();
 		i = 1;
-
+        kk = 1;
 		while (i<5000){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
@@ -263,6 +263,37 @@ int main(int argc, char *argv[]){
 				                                                          salesman_route_g, salesman_route_2g,
 				                                                          global_flag_g);
 			cudaCheckError();
+			
+			if (T[0] < 1){
+			 while(kk < 5000){
+			     localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                     location_g, salesman_route_g,
+				                                                     T_g, global_flag_g, N_g,
+				                                                     states); 
+			     cudaCheckError();
+			
+			     SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                      salesman_route_g, global_flag_g);
+			     cudaCheckError();
+			     InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			     cudaCheckError();
+			
+			     localInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                          location_g, salesman_route_g,
+				                                                          T_g, global_flag_g, N_g,
+				                                                          states);
+			     cudaCheckError();
+			
+			     InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			     cudaCheckError();
+			
+			     InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                          salesman_route_g, salesman_route_2g,
+				                                                          global_flag_g);
+			     cudaCheckError();
+			     kk++;
+			 }
+			}
 			i++;
 		}
 		cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);

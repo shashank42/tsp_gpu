@@ -112,8 +112,8 @@ __global__ static void globalInsertion(unsigned int* city_one,
             __syncthreads();
         } else if (global_flag[0]==0) {
         
-            quotient = proposal_dist/original_dist-1; 
-            p = exp(-quotient * 150 / T[0]);
+            quotient = proposal_dist-original_dist; 
+            p = exp(-quotient / T[0]);
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
             if (p > myrandf && global_flag[0]<tid){ 
@@ -218,8 +218,8 @@ __global__ static void localInsertion(unsigned int* city_one,
 			__syncthreads();
 		} else if (global_flag[0] == 0){
 		
-			quotient = proposal_dist / original_dist - 1;
-			p = exp(-quotient * 100 / T[0]);
+			quotient = proposal_dist - original_dist;
+			p = exp(-quotient / T[0]);
 			myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){
@@ -271,8 +271,9 @@ __global__ static void InsertionUpdate(unsigned int* __restrict__ city_one,
         }
 		__syncthreads();
 		if (xid == 0)
-			global_flag[0];
+			global_flag[0] = 0;
     }
+    __threadfence();
 }
 
 
