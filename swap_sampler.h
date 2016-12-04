@@ -34,7 +34,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // Run until either global flag is zero and we do 100 iterations is false.
-    while (global_flag[0] == 0 && iter < 100){
+    while (global_flag[0] == 0 && iter < 200){
     
     // This is the maximum we can sample from
     // This gives us a nice curve
@@ -145,7 +145,7 @@ __global__ static void localSwap(unsigned int* city_one,
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int iter = 0;
 	// Run until either global flag is zero and we do 100 iterations is false.
-	while (global_flag[0] == 0 && iter < 100){
+	while (global_flag[0] == 0 && iter < 200){
 	
 	    // This is the maximum we can sample from
 		// This gives us a nice curve
@@ -231,8 +231,8 @@ __global__ static void localSwap(unsigned int* city_one,
 			global_flag[0] = tid;
 			__syncthreads();
 		} else if (global_flag[0] == 0){
-			quotient = proposal_dist * 70 / original_dist - 1;
-			p = exp(-quotient / T[0]);
+			quotient = proposal_dist / original_dist - 1;
+			p = exp(-quotient * 150 / T[0]);
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){

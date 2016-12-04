@@ -83,8 +83,8 @@ int main(){
 	// Keep the original loss for comparison pre/post algorithm
 	// SET THE LOSS HERE
 	float T[2], *T_g;
-	T[0] = 10;
-	T[1] = 10;
+	T[0] = 1000;
+	T[1] = 1000;
 	
     // Testing out restarting
 	// http://codecapsule.com/2010/04/06/simulated-annealing-traveling-salesman/
@@ -179,7 +179,7 @@ int main(){
 		cudaCheckError();
 		i = 1;
 
-		while (i<1000){
+		while (i<5000){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      location_g, salesman_route_g,
@@ -244,7 +244,7 @@ int main(){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
-		T[0] = T[0] * 0.9999;
+		T[0] = T[0] * 0.999;
 		
 		iter++;
 		// This grabs the best trip overall
