@@ -9,7 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctype.h>
-
+#include <getopt.h>
 #include "utils.h"
 #include "initialize_rng.h"
 #include "swap_sampler.h"
@@ -39,12 +39,12 @@ int main(int argc, char *argv[]){
         printf("Inputs: \n" 
                "(Required) input_file.tsp: [char()] \n"
                " - A .tsp type file containing the cities to travel over. \n"
-               "(Optional) trip_file.csv: [char()] \n"
+               "(Optional) -trip: [char()] \n"
                " - A csv type file containing a previously found trip."
                " If missing, a linear route is generated as the starting trip. \n"
-               "(Optional) Starting Temperature: [float(1)] \n" 
+               "(Optional) -temp: [float(1)] \n" 
                " - The initial starting temperature \n"
-               "(Optional) Decay Rate: [float(1)]  \n"
+               "(Optional) -decay: [float(1)]  \n"
                " - The decay rate for the annealing schedule \n");
         return 1;
     }
@@ -57,54 +57,52 @@ int main(int argc, char *argv[]){
 	unsigned int i;
 	unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
 
-    // Get starting trip
-	if (argc < 3){
-	    printf("Starting route will be a linear path");
-	    for (i = 0; i <= N; i++)
-		    salesman_route[i] = i;
-	    // Set the starting and end points to be the same
-	    salesman_route[N] = salesman_route[0];
-    } else {
-        const char *trip_name = argv[2];
-        read_trip(trip_name, salesman_route);
-    }    
-    
     // Get loss
     float T[2], *T_g;
-	T[0] = 1000;
-	T[1] = 1000;
-	
-	// Get starting temperature
-	if (argc >= 4){
-	    // If atoi cannot convert to number, it returns 0
-	    float user_temp = atof(argv[3]);
-	    if ( user_temp == 0){
-	       printf("Error: Initial Temperature must be a non-zero number\n");
-	       return 1;
-	    }
-	    T[0] = atoi(argv[3]);
-	    T[1] = T[0];
-	} else {
-	 printf("Initial Temperature set to 1000\n");
-	}
-	
-    //get decay
-    float decay = 0.99;
-	if (argc >= 5){
-	    // If atoi cannot convert to number, it returns 0
-	    float user_decay = atof(argv[4]);
-	    if (user_decay == 0){
-	        printf("Error: Decay must be a number from 0 to 1\n");
-	        return 1;
-	    } else if (user_decay >= 1 || user_decay <= 0){
-	        printf("Error: Decay must be a number from 0 to 1\n");
-	        return 1;
-	    } else {
-	       decay = user_decay;
-	    }
-	} else {
-	    printf("Decay rate set to .99 \n");
-	}
+	T[0] = 0.000000001;
+	T[1] = 0.000000001;
+	float decay = 0.99;
+    // Get starting trip
+	for (i = 0; i <= N; i++)
+	    salesman_route[i] = i;
+	// Set the starting and end points to be the same
+	salesman_route[N] = salesman_route[0];
+    
+    
+    
+    // read in options
+    for (int i = 1; i < argc; i++) {
+        if (i + 1 != argc)    {
+            if (strcmp(argv[i], "-trip=") == 0) {          
+                const char *trip_name = argv[i + 1];
+                read_trip(trip_name, salesman_route);    
+            }
+            if (strcmp(argv[i], "-temp=") == 0) {           
+                // If atof cannot convert to a float, it returns 0
+	            float user_temp = atof(argv[i + 1]);
+	            if ( user_temp == 0){
+	                printf("Error: Initial Temperature must be a non-zero number\n");
+	                return 1;
+	            }
+	            T[0] = user_temp;
+	            T[1] = T[0];
+	        }
+            if (strcmp(argv[i], "-decay=") == 0) {           
+                // If atoi cannot convert to number, it returns 0
+                float user_decay = atof(argv[i + 1]);
+	            if (user_decay == 0){
+	                printf("Error: Decay must be a number from 0 to 1\n");
+	                return 1;
+	            } else if (user_decay >= 1 || user_decay <= 0){
+	                printf("Error: Decay must be a number from 0 to 1\n");
+	                return 1;
+	            } else {
+	               decay = user_decay;
+	            }    
+            }
+        }
+    }
+    
 	/*     don't need it when importing data from files
 	// initialize the coordinates and sequence
 	for(i = 0; i < N; i++){
