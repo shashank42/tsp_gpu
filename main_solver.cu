@@ -38,19 +38,18 @@ int main(int argc, char *argv[]){
     if (argc == 1){
         printf("Inputs: \n" 
                "(Required) input_file.tsp: [char()] \n"
-               " - A .tsp type file containing the cities to travel over. \n"
+               " - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over. \n"
                "(Optional) -trip: [char()] \n"
-               " - A csv type file containing a previously found trip."
+               " - The name of the csv file, excluding .csv, containing a previously found trip."
                " If missing, a linear route is generated as the starting trip. \n"
                "(Optional) -temp: [float(1)] \n" 
-               " - The initial starting temperature \n"
+               " - The initial starting temperature. Default is 1000 \n"
                "(Optional) -decay: [float(1)]  \n"
-               " - The decay rate for the annealing schedule \n");
+               " - The decay rate for the annealing schedule. Default is .99 \n");
         return 1;
     }
     
-    // Get coordinates
-	const char *tsp_name = argv[1];
+	const char *tsp_name = concat(argv[1], ".tsp");
 	coordinates *location_g;
 	read_tsp(tsp_name);
     unsigned int N = meta->dim, *N_g;
@@ -59,8 +58,8 @@ int main(int argc, char *argv[]){
 
     // Get loss
     float T[2], *T_g;
-	T[0] = 0.000000001;
-	T[1] = 0.000000001;
+	T[0] = 1000;
+	T[1] = 1000;
 	float decay = 0.99;
     // Get starting trip
 	for (i = 0; i <= N; i++)
@@ -74,7 +73,7 @@ int main(int argc, char *argv[]){
     for (int i = 1; i < argc; i++) {
         if (i + 1 != argc)    {
             if (strcmp(argv[i], "-trip=") == 0) {          
-                const char *trip_name = argv[i + 1];
+                const char *trip_name = concat(argv[i + 1], ".csv");
                 read_trip(trip_name, salesman_route);    
             }
             if (strcmp(argv[i], "-temp=") == 0) {           
