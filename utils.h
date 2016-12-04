@@ -64,8 +64,10 @@ void read_tsp(const char *tsp_file_name){
      
     
     tsp_file = fopen(tsp_file_name, "r");
-    if (tsp_file == NULL)
+    if (tsp_file == NULL){
+        printf("Failure to find file");
         exit(EXIT_FAILURE);
+    }
     if (fscanf(tsp_file,"%s", buf) <= 0) printf("Reading file failed at first line\n");
     while ( strcmp("NODE_COORD_SECTION", buf) != 0 ) {
     //printf("%s \n",buf);
@@ -252,6 +254,19 @@ void read_trip(const char *trip_file_name, unsigned int *salesman_route, int N){
     } while (r >= limit);
 
     return min + (r / buckets);
+}
+
+/* COMBINE TWO STRING */
+
+char* concat(const char *s1, const char *s2)
+{
+    const size_t len1 = strlen(s1);
+    const size_t len2 = strlen(s2);
+    char *result = (char *)malloc(len1+len2+1);//+1 for the zero-terminator
+    //in real code you would check for errors in malloc here
+    memcpy(result, s1, len1);
+    memcpy(result+len1, s2, len2+1);//+1 to copy the null-terminator
+    return result;
 }
 
 

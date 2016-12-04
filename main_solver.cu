@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <iostream>
 #include <fstream>
-
+#include <ctype.h>
 
 #include "utils.h"
 #include "initialize_rng.h"
@@ -29,38 +29,82 @@ Some compiler options that can speed things up
 --gpu-architecture=compute_35
 I use something like
 NOTE: You need to use the -lcurand flag to compile for the RNG.
-nvcc --optimize=5 --use_fast_math -arch=compute_35 kernel.cu -o tsp_cuda -lcurand
+nvcc --optimize=5 --use_fast_math -arch=compute_35 main_solver.cu -o tsp_cuda -lcurand
 */
 
-int main(){
+int main(int argc, char *argv[]){
 
-	const char *tsp_name = "mona-lisa100K.tsp";
-	const char *trip_name = "mona_lisa_best_trip1.csv";
-	read_tsp(tsp_name);
-	unsigned int N = meta->dim, *N_g;
-	// start counters for cities 
-	unsigned int i;
-
+// Reading in inputs
+    if (argc == 1){
+        printf("Inputs: \n" 
+               "(Required) input_file.tsp: [char()] \n"
+               " - A .tsp type file containing the cities to travel over. \n"
+               "(Optional) trip_file.csv: [char()] \n"
+               " - A csv type file containing a previously found trip."
+               " If missing, a linear route is generated as the starting trip. \n"
+               "(Optional) Starting Temperature: [float(1)] \n" 
+               " - The initial starting temperature \n"
+               "(Optional) Decay Rate: [float(1)]  \n"
+               " - The decay rate for the annealing schedule \n");
+        return 1;
+    }
+    
+    // Get coordinates
+	const char *tsp_name = argv[1];
 	coordinates *location_g;
-
-	/* For checking the coordinates
-	for (i = 0; i < N; i++)
-	printf("Location x: %0.6f, location y: %0.6f \n", location[i].x, location[i].y);
-	exit(0);
-	*/
+	read_tsp(tsp_name);
+    unsigned int N = meta->dim, *N_g;
+	unsigned int i;
 	unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
 
+    // Get starting trip
+	if (argc < 3){
+	    printf("Starting route will be a linear path");
+	    for (i = 0; i <= N; i++)
+		    salesman_route[i] = i;
+	    // Set the starting and end points to be the same
+	    salesman_route[N] = salesman_route[0];
+    } else {
+        const char *trip_name = argv[2];
+        read_trip(trip_name, salesman_route);
+    }    
     
-    /*
-	// just make one inital guess route, a simple linear path
-	for (i = 0; i <= N; i++)
-		salesman_route[i] = i;
-	// Set the starting and end points to be the same
-	salesman_route[N] = salesman_route[0];
-    */
-    // Function to read in route already 
-    read_trip(trip_name, salesman_route);
-    
+    // Get loss
+    float T[2], *T_g;
+	T[0] = 1000;
+	T[1] = 1000;
+	
+	// Get starting temperature
+	if (argc >= 4){
+	    // If atoi cannot convert to number, it returns 0
+	    float user_temp = atof(argv[3]);
+	    if ( user_temp == 0){
+	       printf("Error: Initial Temperature must be a non-zero number\n");
+	       return 1;
+	    }
+	    T[0] = atoi(argv[3]);
+	    T[1] = T[0];
+	} else {
+	 printf("Initial Temperature set to 1000\n");
+	}
+	
+    //get decay
+    float decay = 0.99;
+	if (argc >= 5){
+	    // If atoi cannot convert to number, it returns 0
+	    float user_decay = atof(argv[4]);
+	    if (user_decay == 0){
+	        printf("Error: Decay must be a number from 0 to 1\n");
+	        return 1;
+	    } else if (user_decay >= 1 || user_decay <= 0){
+	        printf("Error: Decay must be a number from 0 to 1\n");
+	        return 1;
+	    } else {
+	       decay = user_decay;
+	    }
+	} else {
+	    printf("Decay rate set to .99 \n");
+	}
 	/*     don't need it when importing data from files
 	// initialize the coordinates and sequence
 	for(i = 0; i < N; i++){
@@ -80,18 +124,8 @@ int main(){
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 	}
 	printf("Original Loss is:  %0.6f \n", original_loss);
-	// Keep the original loss for comparison pre/post algorithm
-	// SET THE LOSS HERE
-	float T[2], *T_g;
-	T[0] = 1000;
-	T[1] = 1000;
+
 	
-    // Testing out restarting
-	// http://codecapsule.com/2010/04/06/simulated-annealing-traveling-salesman/
-	//unsigned int *salesman_route_restart = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
-	// Just need to fill it up first
-	//for (i = 0; i <= N; i++)
-	//	salesman_route_restart[i] = i;
     float optimized_loss_restart = original_loss;
     long int iter = 0;
     
@@ -244,7 +278,7 @@ int main(){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
-		T[0] = T[0] * 0.999;
+		T[0] = T[0] * decay;
 		
 		iter++;
 		// This grabs the best trip overall
@@ -292,7 +326,7 @@ int main(){
 
 	// Write the best trip to CSV
 	FILE *best_trip;
-	const char *filename = "mona_lisa_best_trip.csv";
+	const char *filename = concat(tsp_name,".csv");
 	best_trip = fopen(filename, "w+");
 	fprintf(best_trip, "location,coordinate_x,coordinate_y\n");
 	for (i = 0; i < N + 1; i++){
