@@ -109,16 +109,16 @@ __global__ static void globalInsertion(unsigned int* city_one,
         //because if I pick the small one, I have to tell whether the flag is 0
         if (proposal_dist < original_dist && global_flag[0] == 0){
             global_flag[0] = tid;
-            __syncthreads();
+            __threadfence();
         } else if (global_flag[0]==0) {
         
-            quotient = proposal_dist-original_dist; 
-            p = exp(-quotient / T[0]);
+            quotient = proposal_dist / original_dist - 1;
+            p = exp(-quotient * 150 / T[0]);
             myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
             if (p > myrandf && global_flag[0]<tid){ 
                 global_flag[0] = tid;
-                __syncthreads(); 
+                __threadfence(); 
             }
         }
         iter++;
@@ -215,11 +215,11 @@ __global__ static void localInsertion(unsigned int* city_one,
 		//because if I pick the small one, I have to tell whether the flag is 0
         if (proposal_dist < original_dist && global_flag[0] == 0){
 			global_flag[0] = tid;
-			__syncthreads();
+			__threadfence();
 		} else if (global_flag[0] == 0){
 		
-			quotient = proposal_dist - original_dist;
-			p = exp(-quotient / T[0]);
+			quotient = proposal_dist / original_dist - 1;
+			p = exp(-quotient * 100 / T[0]);
 			myrandf = curand_uniform(&states[tid]);
             myrandf *= (1.0 - 0.9999999999999999);
 			if (p > myrandf && global_flag[0]<tid){
