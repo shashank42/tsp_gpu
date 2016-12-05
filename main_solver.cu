@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
 		cudaCheckError();
 		i = 1;
         kk = 1;
-		while (i<1000){
+		while (i<1500){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      location_g, salesman_route_g,
@@ -273,7 +273,7 @@ int main(int argc, char *argv[]){
 			
 				                                                         
 			if (T[0] < 1){
-			 while(kk < 5000){
+			 while(kk < 1000){
 			     localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                     location_g, salesman_route_g,
 				                                                     T_g, global_flag_g, N_g,
