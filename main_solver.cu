@@ -9,7 +9,6 @@
 #include <iostream>
 #include <fstream>
 #include <ctype.h>
-#include <getopt.h>
 #include "utils.h"
 #include "initialize_rng.h"
 #include "swap_sampler.h"
