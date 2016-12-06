@@ -46,21 +46,22 @@ __global__ static void global2Opt(unsigned int* city_one,
 		// +1,wrong;+2,equivalent to swap; so start with +3
 		int min_city_two = city_one_swap+3;
 
-		int max_city_two = (city_one_swap + 3 + sample_space < N[0]-10) ?
+		int max_city_two = (city_one_swap + 3 + sample_space < N[0]-1) ?
 			city_one_swap+ 3 + sample_space :
-			(N[0] - 10);
+			(N[0] - 1);
 		myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
-
-		// This shouldn't have to be here, but if either is larger or equal to N
-		// We set it to N[0] - 1
-		//I think since the space is well setted, this is innecessary
-		//if (city_one_swap >= N[0] - 33)
-		//	city_one_swap = (N[0] - 33);
-//		if (city_two_swap >= N[0])
-	//		city_two_swap = (N[0] - 1);
+        if (city_one_swap >= N[0])
+            city_one_swap = N[0] - 2;
+        if (city_one_swap == 0)
+            city_one_swap = 2;
+        
+        if (city_two_swap >= N[0])
+            city_two_swap = N[0] - 2;
+        if (city_two_swap == 0)
+            city_two_swap = 2;
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;

@@ -32,103 +32,111 @@ __global__ static void globalInsertion(unsigned int* city_one,
 
     int iter = 0;
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- (T[1] * 2) / T[0]) * N[0] + 2);
+    int sample_space = (int)floor(exp(- (T[1] /15) / T[0]) * N[0] + 2);
     while (global_flag[0] == 0 && iter < 3){
     
 
     
-    // Generate the first city
-    // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-    float myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
-    myrandf += 1.0;
-    myrandf += curand_normal(&states[tid]) * sample_space;
-    int city_one_swap = (int)truncf(myrandf);
-    if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 2;
-    if (city_one_swap <= 0)    city_one_swap += -(city_one_swap)/N[0] * N[0] + 2;
+        // Generate the first city
+        // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
+        float myrandf = curand_uniform(&states[tid]);
+        myrandf *= ((float)(N[0] - 2) - 1.0+0.9999999999999999);
+        myrandf += 1.0;
+        myrandf += (curand_normal(&states[tid]) * sample_space);
+        int city_one_swap = (int)truncf(myrandf);
+        if (city_one_swap >= N[0] - 1) city_one_swap -= (city_one_swap/N[0]) * N[0] - 3;
+        if (city_one_swap < 0)    city_one_swap += (-city_one_swap/N[0]) * N[0] + 2;
+        myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
+        
+        int city_two_swap = (int)truncf(myrandf);
+        if (city_two_swap >= N[0]-1) city_two_swap -= (city_two_swap/N[0]) * N[0] - 3;
+        if (city_two_swap < 0)    city_two_swap += (-city_two_swap/N[0]) * N[0] + 2;
     
-    // Gen second city
-    myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
-	int city_two_swap = (int)truncf(myrandf);
-	if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 2;
-    if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 2;
-
-
-    if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
-    {
-        city_one[tid] = city_one_swap;
-        city_two[tid] = city_two_swap;
-
-        float quotient, p;
-        unsigned int trip_city_one = salesman_route[city_one_swap];
-        unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
-        unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
-
-        unsigned int trip_city_two = salesman_route[city_two_swap];
-        unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
-        // The original and post distances
-        float original_dist = 0;
-        float proposal_dist = 0;
-
-        /* City one is the city to be inserted between city two and city two + 1
-           That means we only have to make three calculations to compute each loss funciton
-           original:
-             - city one - 1 -> city one
-             - city one -> city one + 1
-             - City two -> city two + 1
-           proposal:
-             - city two -> city one
-             - city one -> city two + 1
-             - city one - 1 -> city one + 1
-        */
-        original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
-                         (location[trip_city_one_pre].x - location[trip_city_one].x) +
-                         (location[trip_city_one_pre].y - location[trip_city_one].y) *
-                         (location[trip_city_one_pre].y - location[trip_city_one].y);
-        original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
-                         (location[trip_city_one_post].x - location[trip_city_one].x) +
-                         (location[trip_city_one_post].y - location[trip_city_one].y) *
-                         (location[trip_city_one_post].y - location[trip_city_one].y);
-        original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
-                         (location[trip_city_two_post].x - location[trip_city_two].x) +
-                         (location[trip_city_two_post].y - location[trip_city_two].y) *
-                         (location[trip_city_two_post].y - location[trip_city_two].y);
-
-        proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
-                         (location[trip_city_two].x - location[trip_city_one].x) +
-                         (location[trip_city_two].y - location[trip_city_one].y) *
-                         (location[trip_city_two].y - location[trip_city_one].y);
-        proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
-                         (location[trip_city_two_post].x - location[trip_city_one].x) +
-                         (location[trip_city_two_post].y - location[trip_city_one].y) *
-                         (location[trip_city_two_post].y - location[trip_city_one].y);
-        proposal_dist += (location[trip_city_one_pre].x - location[trip_city_one_post].x) *
-                         (location[trip_city_one_pre].x - location[trip_city_one_post].x) +
-                         (location[trip_city_one_pre].y - location[trip_city_one_post].y) *
-                         (location[trip_city_one_pre].y - location[trip_city_one_post].y);
-        //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
-        //because if I pick the small one, I have to tell whether the flag is 0
-        if (proposal_dist < original_dist && global_flag[0] == 0){
-            global_flag[0] = tid;
-            __threadfence();
-        }
+        if (city_one_swap >= N[0])
+            city_one_swap = N[0] - 2;
+        if (city_one_swap == 0)
+            city_one_swap = 2;
         
-        if (global_flag[0]==0) {
-        
-            quotient = proposal_dist / original_dist - 1;
-            // You can change the constant to whatever you would like
-			// But you should check that the graph looks nice
-			//http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 350) / T[0]);
-            myrandf = curand_uniform(&states[tid]);
-            if (p > myrandf && global_flag[0]<tid){ 
+        if (city_two_swap >= N[0])
+            city_two_swap = N[0] - 2;
+        if (city_two_swap == 0)
+            city_two_swap = 2;
+
+        if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
+        {
+            city_one[tid] = city_one_swap;
+            city_two[tid] = city_two_swap;
+
+            float quotient, p;
+            unsigned int trip_city_one = salesman_route[city_one_swap];
+            unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
+            unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
+
+            unsigned int trip_city_two = salesman_route[city_two_swap];
+            unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
+            // The original and post distances
+            float original_dist = 0;
+            float proposal_dist = 0;
+
+            /* City one is the city to be inserted between city two and city two + 1
+               That means we only have to make three calculations to compute each loss funciton
+               original:
+                 - city one - 1 -> city one
+                 - city one -> city one + 1
+                 - City two -> city two + 1
+               proposal:
+                 - city two -> city one
+                 - city one -> city two + 1
+                 - city one - 1 -> city one + 1
+            */
+            original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
+                             (location[trip_city_one_pre].x - location[trip_city_one].x) +
+                             (location[trip_city_one_pre].y - location[trip_city_one].y) *
+                             (location[trip_city_one_pre].y - location[trip_city_one].y);
+            original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+                             (location[trip_city_one_post].x - location[trip_city_one].x) +
+                             (location[trip_city_one_post].y - location[trip_city_one].y) *
+                             (location[trip_city_one_post].y - location[trip_city_one].y);
+            original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+                             (location[trip_city_two_post].x - location[trip_city_two].x) +
+                             (location[trip_city_two_post].y - location[trip_city_two].y) *
+                             (location[trip_city_two_post].y - location[trip_city_two].y);
+
+            proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
+                             (location[trip_city_two].x - location[trip_city_one].x) +
+                             (location[trip_city_two].y - location[trip_city_one].y) *
+                             (location[trip_city_two].y - location[trip_city_one].y);
+            proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
+                             (location[trip_city_two_post].x - location[trip_city_one].x) +
+                             (location[trip_city_two_post].y - location[trip_city_one].y) *
+                             (location[trip_city_two_post].y - location[trip_city_one].y);
+            proposal_dist += (location[trip_city_one_pre].x - location[trip_city_one_post].x) *
+                             (location[trip_city_one_pre].x - location[trip_city_one_post].x) +
+                             (location[trip_city_one_pre].y - location[trip_city_one_post].y) *
+                             (location[trip_city_one_pre].y - location[trip_city_one_post].y);
+            //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
+            //because if I pick the small one, I have to tell whether the flag is 0
+            if (proposal_dist < original_dist && global_flag[0] == 0){
                 global_flag[0] = tid;
-                __threadfence(); 
+                __threadfence();
             }
-        }
-        iter++;
+        
+            if (global_flag[0]==0) {
+        
+                quotient = proposal_dist / original_dist - 1;
+                // You can change the constant to whatever you would like
+	    		// But you should check that the graph looks nice
+	    		//http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
+                p = exp(-(quotient * T[1] * 350) / T[0]);
+                myrandf = curand_uniform(&states[tid]);
+                if (p > myrandf && global_flag[0]<tid){ 
+                    global_flag[0] = tid;
+                    __threadfence(); 
+                }
+            }
+            iter++;
         } // End of while
-  } 
+    } 
 }
 
 __global__ static void localInsertion(unsigned int* city_one,

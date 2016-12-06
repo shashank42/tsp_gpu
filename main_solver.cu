@@ -258,8 +258,8 @@ int main(int argc, char *argv[]){
 				                                                          states);
 			cudaCheckError();
 			
-			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
+			//InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			//cudaCheckError();
 			
 			InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                          salesman_route_g, salesman_route_2g,

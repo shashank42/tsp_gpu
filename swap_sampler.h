@@ -36,7 +36,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     // This gives us a nice curve
     //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
-    int sample_space = (int)floor(exp(- (T[1] / 3) / T[0]) * (float)N[0] + 1);
+    int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * (float)N[0] + 1);
     // Run until either global flag is zero and we do 100 iterations is false.
     while (global_flag[0] == 0 && iter < 3){
     
@@ -47,24 +47,24 @@ __global__ static void globalSwap(unsigned int* city_one,
     float myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
     myrandf += 1.0;
-    myrandf += curand_normal(&states[tid]) * sample_space;
+    myrandf += (curand_normal(&states[tid]) * sample_space);
     int city_one_swap = (int)truncf(myrandf);
-    if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 1;
-    if (city_one_swap <= 0)    city_one_swap += -(city_one_swap)/N[0] * N[0] + 1;
-    myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
+    if (city_one_swap > N[0]) city_one_swap -= (city_one_swap/N[0]) * N[0] - 1;
+    if (city_one_swap < 0)    city_one_swap += -(city_one_swap/N[0]) * N[0] + 1;
+    myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
     
     int city_two_swap = (int)truncf(myrandf);
-    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 1;
-    if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 1;
+    if (city_two_swap > N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] - 1;
+    if (city_two_swap < 0)    city_two_swap += -(city_two_swap/N[0]) * N[0] + 1;
     
-    if (city_one_swap >= N[0])
+    if (city_one_swap == N[0])
         city_one_swap = N[0] - 1;
-    if (city_one_swap <= 0)
+    if (city_one_swap == 0)
         city_one_swap = 1;
         
-    if (city_two_swap >= N[0])
+    if (city_two_swap == N[0])
         city_two_swap = N[0] - 1;
-    if (city_two_swap <= 0)
+    if (city_two_swap == 0)
         city_two_swap = 1;
 
 
@@ -160,32 +160,43 @@ __global__ static void localSwap(unsigned int* city_one,
 
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int iter = 0;
-	// This is the maximum we can sample from
+    // This is the maximum we can sample from
     // This gives us a nice curve
-    //http://www.wolframalpha.com/input/?i=e%5E(-+2%2Ft)+from+30+to+1
-    int sample_space = (int)floor(exp(- (T[1] * 2) / T[0]) * (float)N[0] + 1);
-	// Run until either global flag is zero and we do 100 iterations is false.
-	while (global_flag[0] == 0 && iter < 3){
-	
+    //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
+    int sample_space = (int)floor(exp(- T[1] / T[0]) * (float)N[0] + 1);
+    // Run until either global flag is zero and we do 100 iterations is false.
+    while (global_flag[0] == 0 && iter < 3){
+    
 
-		
-		// Generate the first city
-		// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-		float myrandf = curand_uniform(&states[tid]);
-		myrandf *= ((float)(N[0] - 1) - 1.0 + 0.9999999999999999);
-		myrandf += 1.0;
-		myrandf += curand_normal(&states[tid]) * sample_space;
-		int city_one_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 1;
-        if (city_one_swap <= 0) city_one_swap += -(city_one_swap)/N[0] * N[0] + 1;
+    
+        // Generate the first city
+        // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
+        float myrandf = curand_uniform(&states[tid]);
+        myrandf *= ((float)(N[0] - 1) - 1.0+0.9999999999999999);
+        myrandf += 1.0;
+        myrandf += (curand_normal(&states[tid]) * sample_space);
+        int city_one_swap = (int)truncf(myrandf);
+        if (city_one_swap > N[0]) city_one_swap -= (city_one_swap/N[0]) * N[0] - 1;
+        if (city_one_swap < 0)    city_one_swap += -(city_one_swap/N[0]) * N[0] + 1;
+        myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         
-        myrandf = city_one_swap + curand_normal(&states[tid]) * sample_space;
-		int city_two_swap = (int)truncf(myrandf);
-		if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap)/N[0] * N[0] - 1;
-        if (city_two_swap <= 0)    city_two_swap += -(city_two_swap)/N[0] * N[0] + 1;
+        int city_two_swap = (int)truncf(myrandf);
+        if (city_two_swap > N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] - 1;
+        if (city_two_swap < 0)    city_two_swap += -(city_two_swap/N[0]) * N[0] + 1;
+    
+        if (city_one_swap == N[0])
+            city_one_swap = N[0] - 1;
+        if (city_one_swap == 0)
+            city_one_swap = 1;
+        
+        if (city_two_swap == N[0])
+            city_two_swap = N[0] - 1;
+        if (city_two_swap == 0)
+            city_two_swap = 1;
 
-		city_one[tid] = city_one_swap;
-		city_two[tid] = city_two_swap;
+
+        city_one[tid] = city_one_swap;
+        city_two[tid] = city_two_swap;
 
 		float quotient, p;
 		// Set the swap cities in the trip.
