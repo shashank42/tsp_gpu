@@ -40,8 +40,8 @@ __global__ static void globalInsertion(unsigned int* city_one,
         // Generate the first city
         // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
         float myrandf = curand_uniform(&states[tid]);
-        myrandf *= ((float)(N[0] - 2) - 1.0+0.9999999999999999);
-        myrandf += 1.0;
+        myrandf *= ((float)(N[0] - 2) - 4.0+0.9999999999999999);
+        myrandf += 4.0;
         myrandf += (curand_normal(&states[tid]) * sample_space);
         int city_one_swap = (int)truncf(myrandf);
         if (city_one_swap >= N[0] - 1) city_one_swap -= (city_one_swap/N[0]) * N[0] - 3;
@@ -148,8 +148,8 @@ __global__ static void localInsertion(unsigned int* city_one,
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 	float myrandf = curand_uniform(&states[tid]);
-	myrandf *= ((float)(N[0] - 1) - 1.0 + 0.9999999999999999);
-	myrandf += 1.0;
+	myrandf *= ((float)(N[0] - 1) - 4.0 + 0.9999999999999999);
+	myrandf += 4.0;
 	myrandf += curand_normal(&states[tid]) * sample_space;
 	int city_one_swap = (int)truncf(myrandf);
     if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 2;
