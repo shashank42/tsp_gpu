@@ -36,7 +36,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     // This gives us a nice curve
     //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
-    int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * (float)N[0] + 1);
+    int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * (float)N[0] + 3);
     // Run until either global flag is zero and we do 100 iterations is false.
     while (global_flag[0] == 0 && iter < 3){
     
@@ -148,7 +148,7 @@ __global__ static void localSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     // This gives us a nice curve
     //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
-    int sample_space = (int)floor(exp(- (T[1]/2) / T[0]) * (float)N[0] + 1);
+    int sample_space = (int)floor(exp(- (T[1]/2) / T[0]) * (float)N[0] + 3);
     // Run until either global flag is zero and we do 100 iterations is false.
     while (global_flag[0] == 0 && iter < 3){
     

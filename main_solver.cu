@@ -201,6 +201,8 @@ int main(int argc, char *argv[]){
 	time_t t_start, t_end;
 	t_start = time(NULL);
 	
+	// Var to check, if we have the same loss 10 times in a row, speed up decay
+	int sames = 0;
 
     
 	while (T[0] > 0.01/log(2*N))
@@ -311,10 +313,13 @@ int main(int argc, char *argv[]){
 		    optimized_loss_restart = optimized_loss;
 		    InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
 			cudaCheckError();
-	    } /*else if (iter % 2000 == 0 ){
-		    InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_restartg, salesman_route_g, N_g);
-			cudaCheckError();
-		}*/
+			sames = 0;
+	    } else if (optimized_loss == optimized_loss_restart){
+	        sames++;
+	        if (sames > 10){
+	            T[0] = T[0] * 0.8;
+	            }
+	    }
 	}
 	//print time spent
 	t_end = time(NULL);

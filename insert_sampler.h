@@ -32,7 +32,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
 
     int iter = 0;
     // This is the maximum we can sample from
-    int sample_space = (int)floor(exp(- (T[1] /15) / T[0]) * N[0] + 2);
+    int sample_space = (int)floor(exp(- (T[1] /15) / T[0]) * N[0] + 3);
     while (global_flag[0] == 0 && iter < 3){
     
 
@@ -140,7 +140,7 @@ __global__ static void localInsertion(unsigned int* city_one,
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
     // This is the maximum we can sample from
-	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 2);
+	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 3);
     while (global_flag[0] == 0 && iter < 3){
     
 
