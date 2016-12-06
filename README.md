@@ -35,7 +35,7 @@ The program will output a csv of the best trip found throughout the simulated an
 
 Several tsp datasets are given, but you can download more of them at the [TSPLIB](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) library and the University of Waterloo's [TSP Data](http://www.math.uwaterloo.ca/tsp/data/) webpage.
 
-This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 25 minutes yielded a trip length of 151,081,189,376 and made a very nice picture which you can also generate with the given jupyter notebook.
+This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 15 minutes yielded a trip length of 24,769,843,200 and made a very nice picture which you can also generate with the given jupyter notebook.
 
 ![](mona_trip.png)
 

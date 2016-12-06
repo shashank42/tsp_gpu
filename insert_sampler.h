@@ -31,10 +31,11 @@ __global__ static void globalInsertion(unsigned int* city_one,
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     int iter = 0;
-    while (global_flag[0] == 0 && iter < 200){
-    
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(- (T[1] * 2) / T[0]) * N[0] + 2);
+    while (global_flag[0] == 0 && iter < 3){
+    
+
     
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
@@ -110,13 +111,15 @@ __global__ static void globalInsertion(unsigned int* city_one,
         if (proposal_dist < original_dist && global_flag[0] == 0){
             global_flag[0] = tid;
             __threadfence();
-        } else if (global_flag[0]==0) {
+        }
+        
+        if (global_flag[0]==0) {
         
             quotient = proposal_dist / original_dist - 1;
             // You can change the constant to whatever you would like
 			// But you should check that the graph looks nice
 			//http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1]/5) / T[0]);
+            p = exp(-(quotient * T[1] * 350) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             if (p > myrandf && global_flag[0]<tid){ 
                 global_flag[0] = tid;
@@ -139,11 +142,11 @@ __global__ static void localInsertion(unsigned int* city_one,
 	//first, refresh the route, this time we have to change city_one-city_two elements
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
-
-    while (global_flag[0] == 0 && iter < 200){
-    
     // This is the maximum we can sample from
 	int sample_space = (int)floor(exp(- (T[1]*2) / T[0]) * N[0] + 2);
+    while (global_flag[0] == 0 && iter < 3){
+    
+
 	
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
@@ -218,13 +221,15 @@ __global__ static void localInsertion(unsigned int* city_one,
         if (proposal_dist < original_dist && global_flag[0] == 0){
 			global_flag[0] = tid;
 			__threadfence();
-		} else if (global_flag[0] == 0){
+		}
+		
+		if (global_flag[0] == 0){
 		
 			quotient = proposal_dist / original_dist - 1;
 			// You can change the constant to whatever you would like
 			// But you should check that the graph looks nice
 			// http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-			p = exp(-(quotient * T[1]/5) / T[0]);
+			p = exp(-(quotient * T[1] * 350) / T[0]);
 			myrandf = curand_uniform(&states[tid]);
 			if (p > myrandf && global_flag[0]<tid){
 				global_flag[0] = tid;
