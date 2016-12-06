@@ -34,11 +34,11 @@ __global__ static void global2Opt(unsigned int* city_one,
 		global_flag[0] = 0;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(30 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
+	int sample_space = (int)floor(5 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
 	while (global_flag[0] == 0 && iter < 3){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
-		myrandf *= ((float)(N[0] - 33) - 1.0 + 0.9999999999999999);
+		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
 		myrandf += 1.0;
 		int city_one_swap = (int)truncf(myrandf);
         if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 33;
@@ -53,8 +53,8 @@ __global__ static void global2Opt(unsigned int* city_one,
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0])
-            city_one_swap = N[0] - 2;
+        if (city_one_swap >= N[0]-5)
+            city_one_swap = N[0] - 5;
         if (city_one_swap == 0)
             city_one_swap = 2;
         
@@ -78,22 +78,15 @@ __global__ static void global2Opt(unsigned int* city_one,
 
 
 		// very simple relationship
-		original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
-			(location[trip_city_one_post].x - location[trip_city_one].x) +
-			(location[trip_city_one_post].y - location[trip_city_one].y) *
-			(location[trip_city_one_post].y - location[trip_city_one].y);
-		original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
-			(location[trip_city_two_post].x - location[trip_city_two].x) +
-			(location[trip_city_two_post].y - location[trip_city_two].y) *
-			(location[trip_city_two_post].y - location[trip_city_two].y);
-		proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
-			(location[trip_city_two].x - location[trip_city_one].x) +
-			(location[trip_city_two].y - location[trip_city_one].y) *
-			(location[trip_city_two].y - location[trip_city_one].y);
-		proposal_dist += (location[trip_city_two_post].x - location[trip_city_one_post].x) *
-			(location[trip_city_two_post].x - location[trip_city_one_post].x) +
-			(location[trip_city_two_post].y - location[trip_city_one_post].y) *
-			(location[trip_city_two_post].y - location[trip_city_one_post].y);
+		original_dist += sqrtf(powf(location[trip_city_one_post].x - location[trip_city_one].x,2) +
+			             powf(location[trip_city_one_post].y - location[trip_city_one].y,2));
+		original_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_two].x ,2) +
+			             powf(location[trip_city_two_post].y - location[trip_city_two].y,2));
+			             
+		proposal_dist += sqrtf(powf(location[trip_city_two].x - location[trip_city_one].x,2) +
+			             powf(location[trip_city_two].y - location[trip_city_one].y,2));
+		proposal_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_one_post].x,2) +
+			             powf(location[trip_city_two_post].y - location[trip_city_one_post].y,2));
 
 
 		//I think if we have three methods, there's no need for acceptance...
@@ -107,7 +100,7 @@ __global__ static void global2Opt(unsigned int* city_one,
             // You can change the constant to whatever you would like
 		    // But you should check that the graph looks nice
 		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 600) / T[0]);
+            p = exp(-(quotient * T[1] * 300) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             if (p > myrandf && global_flag[0]<tid){
                 global_flag[0] = tid;

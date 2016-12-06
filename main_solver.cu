@@ -115,10 +115,10 @@ int main(int argc, char *argv[]){
 	// Calculate the original loss
 	float original_loss = 0;
 	for (i = 0; i < N; i++){
-		original_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
-			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
-			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+		original_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x)) +
+			sqrt((location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 	}
 	printf("Original Loss is:  %0.6f \n", original_loss);
 
@@ -297,10 +297,10 @@ int main(int argc, char *argv[]){
 		cudaCheckError();
 		float optimized_loss = 0;
 		for (i = 0; i < N; i++){
-			optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
-				(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
-				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+			optimized_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+				                   (location[salesman_route[i]].x - location[salesman_route[i + 1]].x)) +
+				              sqrt((location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
+				                   (location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
 		T[0] = T[0] * decay;
