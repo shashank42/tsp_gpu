@@ -37,20 +37,20 @@ __global__ static void globalSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * N[0] + 3);
     while (global_flag[0] == 0 && iter < 3){
-    
 
-    
+
+
         // Generate the first city
         // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
         float myrandf = curand_uniform(&states[tid]);
-        myrandf *= ((float)(N[0] - 2) - 2.0+0.9999999999999999);
-        myrandf += 2.0;
+        myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
+        myrandf += 4.0;
         //myrandf += (curand_normal(&states[tid]) * sample_space);
         // Do uniform for city one, and normal dist for city two
         int city_one_swap = (int)truncf(myrandf);
         //if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap/N[0] + 1) * N[0];
         //if (city_one_swap < 0)    city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
-        
+
         myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
@@ -58,10 +58,10 @@ __global__ static void globalSwap(unsigned int* city_one,
         // We add 1 here because we want to shift up N form [-N[0] to 0]
         if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
 
-        // Check if city one is too close to city two. 
+        // Check if city one is too close to city two.
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 4){
          // If less, shift down 3
-           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 1; 
+           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 1;
         // If more, shift up 3
            if (city_two_swap > city_one_swap) city_two_swap = city_one_swap+ 1;
         }
@@ -148,30 +148,30 @@ __global__ static void localSwap(unsigned int* city_one,
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * N[0] + 3);
     while (global_flag[0] == 0 && iter < 3){
-    
 
-    
+
+
         // Generate the first city
         // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
         float myrandf = curand_uniform(&states[tid]);
-        myrandf *= ((float)(N[0] - 2) - 2.0+0.9999999999999999);
-        myrandf += 2.0;
+        myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
+        myrandf += 4.0;
         //myrandf += (curand_normal(&states[tid]) * sample_space);
         // Do uniform for city one, and normal dist for city two
         int city_one_swap = (int)truncf(myrandf);
         //if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap/N[0] + 1) * N[0];
         //if (city_one_swap < 0)    city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
-        
+
         myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
         if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
 
-        // Check if city one is too close to city two. 
+        // Check if city one is too close to city two.
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 4){
          // If less, shift down 3
-           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 1; 
+           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 1;
         // If more, shift up 3
            if (city_two_swap > city_one_swap) city_two_swap = city_one_swap+ 1;
         }

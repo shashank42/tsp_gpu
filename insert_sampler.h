@@ -33,34 +33,34 @@ __global__ static void globalInsertion(unsigned int* city_one,
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * N[0] + 4);
     while (global_flag[0] == 0 && iter < 3){
-    
 
-    
+
+
         // Generate the first city
         // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
         float myrandf = curand_uniform(&states[tid]);
         myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
-        myrandf += 5.0;
+        myrandf += 4.0;
         //myrandf += (curand_normal(&states[tid]) * sample_space);
         // Do uniform for city one, and normal dist for city two
         int city_one_swap = (int)truncf(myrandf);
         //if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap/N[0] + 1) * N[0];
         //if (city_one_swap < 0)    city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
-        
+
         myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         int city_two_swap = (int)truncf(myrandf);
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 2;
         if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
 
-        // Check if city one is too close to city two. 
-        if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 16){
+        // Check if city one is too close to city two.
+        if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 9){
          // If less, shift down 3
-           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 3; 
+           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 3;
         // If more, shift up 3
            if (city_two_swap > city_one_swap) city_two_swap = city_one_swap+ 3;
         }
-        
-        
+
+
       //  if (city_two_swap < (N[0] - 1) ){
             city_one[tid] = city_one_swap;
             city_two[tid] = city_two_swap;
@@ -108,7 +108,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
             }
             //if (T[0] > 1){
                 if (global_flag[0] == 0){
-        
+
                     quotient = proposal_dist / original_dist - 1;
                     // You can change the constant to whatever you would like
                     // But you should check that the graph looks nice
@@ -122,7 +122,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
                 }
             //}
         iter++;
-      //  }// NOTE: Doing iter++ within if statement 
+      //  }// NOTE: Doing iter++ within if statement
     }
 }
 
@@ -140,30 +140,30 @@ __global__ static void localInsertion(unsigned int* city_one,
     // This is the maximum we can sample from
     int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * N[0] + 4);
     while (global_flag[0] == 0 && iter < 3){
-    
 
-    
+
+
         // Generate the first city
         // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
         float myrandf = curand_uniform(&states[tid]);
         myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
-        myrandf += 5.0;
+        myrandf += 4.0;
         //myrandf += (curand_normal(&states[tid]) * sample_space);
         // Do uniform for city one, and normal dist for city two
         int city_one_swap = (int)truncf(myrandf);
         //if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap/N[0] + 1) * N[0];
         //if (city_one_swap < 0)    city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
-        
+
         myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0] ) * N[0] + 2;
         if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
 
-        // Check if city one is too close to city two. 
-        if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 16){
+        // Check if city one is too close to city two.
+        if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 9){
          // If less, shift down 3
-           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 3; 
+           if (city_two_swap < city_one_swap) city_two_swap = city_one_swap - 3;
         // If more, shift up 3
            if (city_two_swap > city_one_swap) city_two_swap = city_one_swap+ 3;
         }
@@ -215,7 +215,7 @@ __global__ static void localInsertion(unsigned int* city_one,
             }
             //if (T[0] > 1){
                 if (global_flag[0] == 0){
-        
+
                     quotient = proposal_dist / original_dist - 1;
                     // You can change the constant to whatever you would like
                     // But you should check that the graph looks nice
@@ -229,7 +229,7 @@ __global__ static void localInsertion(unsigned int* city_one,
                 }
             //}
         iter++;
-       // }// NOTE: Doing iter++ within if statement 
+       // }// NOTE: Doing iter++ within if statement
     }
 }
 
