@@ -194,19 +194,31 @@ __global__ static void localInsertion(unsigned int* city_one,
             - city one -> city two + 1
             - city one - 1 -> city one + 1
             */
-            original_dist += sqrt(powf(location[trip_city_one_pre].x - location[trip_city_one].x,2)  +
-                                  powf(location[trip_city_one_pre].y - location[trip_city_one].y,2));
-            original_dist += sqrt(powf(location[trip_city_one_post].x - location[trip_city_one].x,2) +
-                                  powf(location[trip_city_one_post].y - location[trip_city_one].y,2)) ;
-            original_dist += sqrt(powf(location[trip_city_two_post].x - location[trip_city_two].x,2) +
-                                  powf(location[trip_city_two_post].y - location[trip_city_two].y,2)) ;
+            original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
+                             (location[trip_city_one_pre].x - location[trip_city_one].x) +
+                             (location[trip_city_one_pre].y - location[trip_city_one].y) *
+                             (location[trip_city_one_pre].y - location[trip_city_one].y);
+            original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+                             (location[trip_city_one_post].x - location[trip_city_one].x) +
+                             (location[trip_city_one_post].y - location[trip_city_one].y) *
+                             (location[trip_city_one_post].y - location[trip_city_one].y);
+            original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+                             (location[trip_city_two_post].x - location[trip_city_two].x) +
+                             (location[trip_city_two_post].y - location[trip_city_two].y) *
+                             (location[trip_city_two_post].y - location[trip_city_two].y);
 
-            proposal_dist += sqrt(powf(location[trip_city_two].x - location[trip_city_one].x,2)  +
-                                  powf(location[trip_city_two].y - location[trip_city_one].y,2));
-            proposal_dist += sqrt(powf(location[trip_city_two_post].x - location[trip_city_one].x,2)  +
-                                  powf(location[trip_city_two_post].y - location[trip_city_one].y,2));
-            proposal_dist += sqrt(powf(location[trip_city_one_pre].x - location[trip_city_one_post].x,2)  +
-                                  powf(location[trip_city_one_pre].y - location[trip_city_one_post].y,2));
+            proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
+                             (location[trip_city_two].x - location[trip_city_one].x) +
+                             (location[trip_city_two].y - location[trip_city_one].y) *
+                             (location[trip_city_two].y - location[trip_city_one].y);
+            proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
+                             (location[trip_city_two_post].x - location[trip_city_one].x) +
+                             (location[trip_city_two_post].y - location[trip_city_one].y) *
+                             (location[trip_city_two_post].y - location[trip_city_one].y);
+            proposal_dist += (location[trip_city_one_pre].x - location[trip_city_one_post].x) *
+                             (location[trip_city_one_pre].x - location[trip_city_one_post].x) +
+                             (location[trip_city_one_pre].y - location[trip_city_one_post].y) *
+                             (location[trip_city_one_pre].y - location[trip_city_one_post].y);
             //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
             //because if I pick the small one, I have to tell whether the flag is 0
             if (proposal_dist < original_dist && global_flag[0] == 0){
