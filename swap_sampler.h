@@ -55,7 +55,8 @@ __global__ static void globalSwap(unsigned int* city_one,
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
-        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0]) * N[0] - 1;
+        // We add 1 here because we want to shift up N form [-N[0] to 0]
+        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
 
         // Check if city one is too close to city two. 
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 4){
@@ -119,7 +120,7 @@ __global__ static void globalSwap(unsigned int* city_one,
         // You can change the constant to whatever you would like
         // But you should check that the graph looks nice
         //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-        p = exp(-(quotient * 50) / T[0]);
+        p = exp(-(quotient * T[1] * 100) / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;
@@ -165,7 +166,7 @@ __global__ static void localSwap(unsigned int* city_one,
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
-        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0]) * N[0] - 1;
+        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
 
         // Check if city one is too close to city two. 
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 4){
@@ -229,7 +230,7 @@ __global__ static void localSwap(unsigned int* city_one,
         // You can change the constant to whatever you would like
         // But you should check that the graph looks nice
         //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-        p = exp(-(quotient * 50) / T[0]);
+        p = exp(-(quotient * T[1] * 100) / T[0]);
         myrandf = curand_uniform(&states[tid]);
         if (p > myrandf && global_flag[0]<tid){
             global_flag[0] = tid;

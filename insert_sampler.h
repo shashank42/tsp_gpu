@@ -50,7 +50,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
         myrandf = city_one_swap + (curand_normal(&states[tid]) * sample_space);
         int city_two_swap = (int)truncf(myrandf);
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 2;
-        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0]) * N[0] - 2;
+        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
 
         // Check if city one is too close to city two. 
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 16){
@@ -113,7 +113,7 @@ __global__ static void globalInsertion(unsigned int* city_one,
                     // You can change the constant to whatever you would like
                     // But you should check that the graph looks nice
                     // http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-                    p = exp(-(quotient * 50) / T[0]);
+                    p = exp(-(quotient * T[1] * 100) / T[0]);
                     myrandf = curand_uniform(&states[tid]);
                     if (p > myrandf && global_flag[0]<tid){
                         global_flag[0] = tid;
@@ -158,7 +158,7 @@ __global__ static void localInsertion(unsigned int* city_one,
         int city_two_swap = (int)truncf(myrandf);
         // This wheels city two around the circle
         if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0] ) * N[0] + 2;
-        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0]) * N[0] - 2;
+        if (city_two_swap <= 0)    city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
 
         // Check if city one is too close to city two. 
         if ( (city_two_swap - city_one_swap) * (city_two_swap - city_one_swap) < 16){
@@ -213,21 +213,21 @@ __global__ static void localInsertion(unsigned int* city_one,
                 global_flag[0] = tid;
                 __threadfence();
             }
-            if (T[0] > 1){
+            //if (T[0] > 1){
                 if (global_flag[0] == 0){
         
                     quotient = proposal_dist / original_dist - 1;
                     // You can change the constant to whatever you would like
                     // But you should check that the graph looks nice
                     // http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-                    p = exp(-(quotient * 50) / T[0]);
+                    p = exp(-(quotient * T[1] * 100) / T[0]);
                     myrandf = curand_uniform(&states[tid]);
                     if (p > myrandf && global_flag[0]<tid){
                         global_flag[0] = tid;
                         __syncthreads();
                     }
                 }
-            }
+            //}
         iter++;
        // }// NOTE: Doing iter++ within if statement 
     }

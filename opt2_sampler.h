@@ -41,8 +41,8 @@ __global__ static void global2Opt(unsigned int* city_one,
 		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
 		myrandf += 1.0;
 		int city_one_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 33;
-        if (city_one_swap <= 0) city_one_swap += -(city_one_swap)/N[0] * N[0] + 3;
+        if (city_one_swap > N[0]) city_one_swap -= (city_one_swap/N[0]) * N[0] - 5;
+        if (city_one_swap <= 0) city_one_swap += -(city_one_swap/N[0] + 1) * N[0] + 3;
 		// +1,wrong;+2,equivalent to swap; so start with +3
 		int min_city_two = city_one_swap+3;
 
@@ -53,15 +53,6 @@ __global__ static void global2Opt(unsigned int* city_one,
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0]-5)
-            city_one_swap = N[0] - 5;
-        if (city_one_swap == 0)
-            city_one_swap = 2;
-        
-        if (city_two_swap >= N[0])
-            city_two_swap = N[0] - 2;
-        if (city_two_swap == 0)
-            city_two_swap = 2;
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
@@ -100,7 +91,7 @@ __global__ static void global2Opt(unsigned int* city_one,
             // You can change the constant to whatever you would like
 		    // But you should check that the graph looks nice
 		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 300) / T[0]);
+            p = exp(-(quotient * T[1] * 100) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             if (p > myrandf && global_flag[0]<tid){
                 global_flag[0] = tid;
