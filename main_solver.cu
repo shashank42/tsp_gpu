@@ -213,79 +213,77 @@ int main(int argc, char *argv[]){
         i = 1;
         kk = 1;
         while (i<1000){
-
+/**/
             globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                       location_g, salesman_route_g,
                                                                       T_g, global_flag_g, N_g,
                                                                       states);  
-            cudaCheckError();
+            //cudaCheckError();
             
             SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                       salesman_route_g, global_flag_g);
-            cudaCheckError();
-            
-            localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-                                                                     location_g, salesman_route_g,
-                                                                     T_g, global_flag_g, N_g,
-                                                                     states); 
-            cudaCheckError();
-            
-            SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-                                                                      salesman_route_g, global_flag_g);
-            cudaCheckError();
+            //cudaCheckError();
     
             InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-            cudaCheckError();
+           // cudaCheckError();
             globalInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                            location_g, salesman_route_g,
                                                                            T_g, global_flag_g, N_g,
                                                                            states); 
-            cudaCheckError();
+           // cudaCheckError();
             
             InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                          salesman_route_g, salesman_route_2g,
                                                                          global_flag_g);
-            cudaCheckError();
+           // cudaCheckError();
             InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                          salesman_route_g, salesman_route_2g,
                                                                          global_flag_g);
-            cudaCheckError();
+           // cudaCheckError();
+            // We put more emphasis on 2-opt routes and local
+            while(kk < 1500){
+                localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                                                                     location_g, salesman_route_g,
+                                                                     T_g, global_flag_g, N_g,
+                                                                     states); 
+                //cudaCheckError();
             
-            localInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                                                                      salesman_route_g, global_flag_g);
+                InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+               // cudaCheckError();
+                localInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                           location_g, salesman_route_g,
                                                                           T_g, global_flag_g, N_g,
                                                                           states);
-            cudaCheckError();
+                //cudaCheckError();
             
-            InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-            cudaCheckError();
-            
-            InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                InsertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                           salesman_route_g, salesman_route_2g,
                                                                           global_flag_g);
-            cudaCheckError();
+                //cudaCheckError();
             
                         
-            InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                InsertionUpdateEnd <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                          salesman_route_g, salesman_route_2g,
                                                                          global_flag_g);
-            cudaCheckError();
+               //cudaCheckError();
             
                                                                       
-            // We put more emphasis on 2-opt routes
-             while(kk < 1000){
 
-                 global2Opt<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+
+                global2Opt<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                           location_g, salesman_route_g,
                                                                           T_g, global_flag_g, N_g,
                                                                           states);
-                 //cudaCheckError();
+                //cudaCheckError();
                 
-                 InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-                 cudaCheckError();
-                 Opt2Update<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-                                                                              salesman_route_g, salesman_route_2g, global_flag_g);
-                 cudaCheckError();
+                InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+                cudaCheckError();
+                Opt2Update<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                                                                              salesman_route_g, salesman_route_2g,
+                                                                               global_flag_g);
+                //cudaCheckError();
                  
                  kk++;
              }
@@ -328,10 +326,10 @@ int main(int argc, char *argv[]){
     // We have to redefine optimized loss for some reason?
     float optimized_loss = 0;
     for (i = 0; i < N; i++){
-        optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+        optimized_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
             (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
             (location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-            (location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+            (location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
     }
     
     // If it's worse than the restart make the route the restart.
