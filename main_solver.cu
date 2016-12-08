@@ -115,10 +115,10 @@ int main(int argc, char *argv[]){
 	// Calculate the original loss
 	float original_loss = 0;
 	for (i = 0; i < N; i++){
-		original_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+		original_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
 			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 	}
 	printf("Original Loss is:  %0.6f \n", original_loss);
 
@@ -231,7 +231,7 @@ int main(int argc, char *argv[]){
 			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      salesman_route_g, global_flag_g);
 			cudaCheckError();
-		
+		/*
 			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			globalInsertion <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
@@ -271,7 +271,7 @@ int main(int argc, char *argv[]){
 				                                                         salesman_route_g, salesman_route_2g,
 				                                                         global_flag_g);
 			cudaCheckError();
-			
+			*/
 				                                                      
 			// We put more emphasis on 2-opt routes
 			 while(kk < 1000){
@@ -297,10 +297,10 @@ int main(int argc, char *argv[]){
 		cudaCheckError();
 		float optimized_loss = 0;
 		for (i = 0; i < N; i++){
-			optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+			optimized_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
 				(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 		}
 		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
 		T[0] = T[0] * decay;
@@ -326,10 +326,10 @@ int main(int argc, char *argv[]){
 	// We have to redefine optimized loss for some reason?
 	float optimized_loss = 0;
 	for (i = 0; i < N; i++){
-		optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+		optimized_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
 			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 	}
 	
 	// If it's worse than the restart make the route the restart.
@@ -340,10 +340,10 @@ int main(int argc, char *argv[]){
 	
 	optimized_loss = 0;
 	for (i = 0; i < N; i++){
-		optimized_loss += (location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
+		optimized_loss += sqrt((location[salesman_route[i]].x - location[salesman_route[i + 1]].x) *
 			(location[salesman_route[i]].x - location[salesman_route[i + 1]].x) +
 			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
-			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y);
+			(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 	}
 	
 	printf("Original Loss is:  %0.6f \n", original_loss); 

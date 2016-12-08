@@ -34,8 +34,8 @@ __global__ static void global2Opt(unsigned int* city_one,
 		global_flag[0] = 0;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(30 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
-	while (global_flag[0] == 0 && iter < 3){
+	int sample_space = (int)floor(25 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
+	while (global_flag[0] == 0 && iter < 10){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)(N[0] - 33) - 1.0 + 0.9999999999999999);
