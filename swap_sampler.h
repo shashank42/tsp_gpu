@@ -38,7 +38,7 @@ __global__ static void globalSwap(unsigned int* city_one,
     //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
     int sample_space = (int)floor(exp(- (T[1] / 15) / T[0]) * (float)N[0] + 3);
     // Run until either global flag is zero and we do 100 iterations is false.
-    while (global_flag[0] == 0 && iter < 3){
+    while (global_flag[0] == 0 && iter < 10){
     
 
     
@@ -150,7 +150,7 @@ __global__ static void localSwap(unsigned int* city_one,
     //http://www.wolframalpha.com/input/?i=e%5E(-+10%2Ft)+from+10+to+1
     int sample_space = (int)floor(exp(- (T[1]/2) / T[0]) * (float)N[0] + 3);
     // Run until either global flag is zero and we do 100 iterations is false.
-    while (global_flag[0] == 0 && iter < 3){
+    while (global_flag[0] == 0 && iter < 10){
     
 
     
@@ -233,7 +233,7 @@ __global__ static void localSwap(unsigned int* city_one,
             // You can change the constant to whatever you would like
 			// But you should check that the graph looks nice
 			//http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 300) / T[0]);
+            p = exp(-(quotient * T[1] * 4000) / T[0]);
             myrandf = curand_uniform(&states[tid]);
 			if (p > myrandf && global_flag[0]<tid){
 				global_flag[0] = tid;

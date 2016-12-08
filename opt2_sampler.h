@@ -34,8 +34,8 @@ __global__ static void global2Opt(unsigned int* city_one,
 		global_flag[0] = 0;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(5 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
-	while (global_flag[0] == 0 && iter < 3){
+	int sample_space = (int)floor(25 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
+	while (global_flag[0] == 0 && iter < 10){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
@@ -100,7 +100,7 @@ __global__ static void global2Opt(unsigned int* city_one,
             // You can change the constant to whatever you would like
 		    // But you should check that the graph looks nice
 		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 300) / T[0]);
+            p = exp(-(quotient * T[1] * 4000) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             if (p > myrandf && global_flag[0]<tid){
                 global_flag[0] = tid;
