@@ -88,25 +88,41 @@ __global__ static void globalSwap(unsigned int* city_one,
       // so we just unroll the loop here
       // TODO: It may be nice to make vars for the locations as well so this does not look so gross
       // The first city, unswapped. The one behind it and the one in front of it
-      original_dist += sqrtf(powf(location[trip_city_one_pre].x - location[trip_city_one].x,2)  +
-                       powf(location[trip_city_one_pre].y - location[trip_city_one].y,2));
-      original_dist += sqrtf(powf(location[trip_city_one_post].x - location[trip_city_one].x,2) +
-                       powf(location[trip_city_one_post].y - location[trip_city_one].y,2));
+      original_dist += (location[trip_city_one_pre].x - location[trip_city_one].x) *
+                       (location[trip_city_one_pre].x - location[trip_city_one].x) +
+                       (location[trip_city_one_pre].y - location[trip_city_one].y) *
+                       (location[trip_city_one_pre].y - location[trip_city_one].y);
+      original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+                       (location[trip_city_one_post].x - location[trip_city_one].x) +
+                       (location[trip_city_one_post].y - location[trip_city_one].y) *
+                       (location[trip_city_one_post].y - location[trip_city_one].y);
       // The second city, unswapped. The one behind it and the one in front of it
-      original_dist += sqrtf(powf(location[trip_city_two_pre].x - location[trip_city_two].x,2) +
-                       powf(location[trip_city_two_pre].y - location[trip_city_two].y,2));
-      original_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_two].x,2) +
-                       powf(location[trip_city_two_post].y - location[trip_city_two].y,2));
+      original_dist += (location[trip_city_two_pre].x - location[trip_city_two].x) *
+                       (location[trip_city_two_pre].x - location[trip_city_two].x) +
+                       (location[trip_city_two_pre].y - location[trip_city_two].y) *
+                       (location[trip_city_two_pre].y - location[trip_city_two].y);
+      original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+                       (location[trip_city_two_post].x - location[trip_city_two].x) +
+                       (location[trip_city_two_post].y - location[trip_city_two].y) *
+                       (location[trip_city_two_post].y - location[trip_city_two].y);
       // The first city, swapped. The one behind it and the one in front of it
-      proposal_dist += sqrtf(powf(location[trip_city_two_pre].x - location[trip_city_one].x,2)  +
-                       powf(location[trip_city_two_pre].y - location[trip_city_one].y,2));
-      proposal_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_one].x,2) +
-                       powf(location[trip_city_two_post].y - location[trip_city_one].y,2));
+      proposal_dist += (location[trip_city_two_pre].x - location[trip_city_one].x) *
+                       (location[trip_city_two_pre].x - location[trip_city_one].x) +
+                       (location[trip_city_two_pre].y - location[trip_city_one].y) *
+                       (location[trip_city_two_pre].y - location[trip_city_one].y);
+      proposal_dist += (location[trip_city_two_post].x - location[trip_city_one].x) *
+                       (location[trip_city_two_post].x - location[trip_city_one].x) +
+                       (location[trip_city_two_post].y - location[trip_city_one].y) *
+                       (location[trip_city_two_post].y - location[trip_city_one].y);
       // The second city, swapped. The one behind it and the one in front of it
-      proposal_dist += sqrtf(powf(location[trip_city_one_pre].x - location[trip_city_two].x,2)  +
-                       powf(location[trip_city_one_pre].y - location[trip_city_two].y,2));
-      proposal_dist += sqrtf(powf(location[trip_city_one_post].x - location[trip_city_two].x,2)  +
-                       powf(location[trip_city_one_post].y - location[trip_city_two].y,2));
+      proposal_dist += (location[trip_city_one_pre].x - location[trip_city_two].x) *
+                       (location[trip_city_one_pre].x - location[trip_city_two].x) +
+                       (location[trip_city_one_pre].y - location[trip_city_two].y) *
+                       (location[trip_city_one_pre].y - location[trip_city_two].y);
+      proposal_dist += (location[trip_city_one_post].x - location[trip_city_two].x) *
+                       (location[trip_city_one_post].x - location[trip_city_two].x) +
+                       (location[trip_city_one_post].y - location[trip_city_two].y) *
+(location[trip_city_one_post].y - location[trip_city_two].y);
 
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one

@@ -78,15 +78,22 @@ __global__ static void global2Opt(unsigned int* city_one,
 
 
 		// very simple relationship
-		original_dist += sqrtf(powf(location[trip_city_one_post].x - location[trip_city_one].x,2) +
-			             powf(location[trip_city_one_post].y - location[trip_city_one].y,2));
-		original_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_two].x ,2) +
-			             powf(location[trip_city_two_post].y - location[trip_city_two].y,2));
-			             
-		proposal_dist += sqrtf(powf(location[trip_city_two].x - location[trip_city_one].x,2) +
-			             powf(location[trip_city_two].y - location[trip_city_one].y,2));
-		proposal_dist += sqrtf(powf(location[trip_city_two_post].x - location[trip_city_one_post].x,2) +
-			             powf(location[trip_city_two_post].y - location[trip_city_one_post].y,2));
+		original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+			(location[trip_city_one_post].x - location[trip_city_one].x) +
+			(location[trip_city_one_post].y - location[trip_city_one].y) *
+			(location[trip_city_one_post].y - location[trip_city_one].y);
+		original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+			(location[trip_city_two_post].x - location[trip_city_two].x) +
+			(location[trip_city_two_post].y - location[trip_city_two].y) *
+			(location[trip_city_two_post].y - location[trip_city_two].y);
+		proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
+			(location[trip_city_two].x - location[trip_city_one].x) +
+			(location[trip_city_two].y - location[trip_city_one].y) *
+			(location[trip_city_two].y - location[trip_city_one].y);
+		proposal_dist += (location[trip_city_two_post].x - location[trip_city_one_post].x) *
+			(location[trip_city_two_post].x - location[trip_city_one_post].x) +
+			(location[trip_city_two_post].y - location[trip_city_one_post].y) *
+            (location[trip_city_two_post].y - location[trip_city_one_post].y);
 
 
 		//I think if we have three methods, there's no need for acceptance...
