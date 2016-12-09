@@ -12,7 +12,7 @@ The code has so far only been tested on trip sizes no larger than 100,000. But b
 Cloning this repo and typing `make` will create the tsp_cuda program which can be accessed through something like
 
 ```
-./tsp_cuda mona-lisa100K  -temp= 10000 -decay= .999
+./tsp_cuda ./data/mona-lisa100K  -temp= 10000 -decay= .999
 ```
 
 

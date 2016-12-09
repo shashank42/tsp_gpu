@@ -9,11 +9,11 @@
 #include <iostream>
 #include <fstream>
 #include <ctype.h>
-#include "utils.h"
-#include "initialize_rng.h"
-#include "swap_sampler.h"
-#include "insert_sampler.h"
-#include "opt2_sampler.h"
+#include "kernels/utils.h"
+#include "kernels/initialize_rng.h"
+#include "kernels/swap_sampler.h"
+#include "kernels/insert_sampler.h"
+#include "kernels/opt2_sampler.h"
 
 
 #define t_num 1024
