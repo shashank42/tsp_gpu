@@ -4,66 +4,80 @@
 int main()
 {
     printf("Hello world!\n");
-    int a,b,c,d,e,f,g,h,i=1,j=1;
+    int a,b,c,d,e,f,g,h,i=1,j=1,k=0,l=0,m=2000;
+    //l counts how many wrong we made while using square
+    //m is distance range
     //four segments condition, corresponding to swap
-    while(j*i>0)
+    for(m=100;m<10000;m*=2)
     {
-        a=rand()%1000;
-        b=rand()%1000;
-        c=rand()%1000;
-        d=rand()%1000;
-        e=rand()%1000;
-        f=rand()%1000;
-        g=rand()%1000;
-        h=rand()%1000;
+    i=1;
+    j=1;
+    k=0;
+    l=0;
+    printf("range %d\n",m);
+    while(k<1000000)
+    {
+        a=rand()%m;
+        b=rand()%m;
+        c=rand()%m;
+        d=rand()%m;
+        e=rand()%m;
+        f=rand()%m;
+        g=rand()%m;
+        h=rand()%m;
         i=a*a+b*b+c*c+d*d-e*e-f*f-g*g-h*h;
         j=a+b+c+d-e-f-g-h;
         if(i*j<0)
         {
-            printf("swap\n");
-            printf("i %d\n",i);
-            printf("j %d\n",j);
+            l++;
         }
+        k++;
     }
+    //probability of wrong acceptance
+    printf("4seg %f\n",l/1000000.0);
     //three segments condition, corresponding to insertion
     i=1;
     j=1;
-    while(i*j>0)
+    k=0;
+    l=0;
+    while(k<1000000)
     {
-        a=rand()%1000;
-        b=rand()%1000;
-        c=rand()%1000;
-        d=rand()%1000;
-        e=rand()%1000;
-        f=rand()%1000;
+        a=rand()%m;
+        b=rand()%m;
+        c=rand()%m;
+        d=rand()%m;
+        e=rand()%m;
+        f=rand()%m;
         i=a*a+b*b+c*c-d*d-e*e-f*f;
         j=a+b+c-d-e-f;
         if(i*j<0)
         {
-            printf("insert\n");
-            printf("i %d\n",i);
-            printf("j %d\n",j);
+            l++;
         }
+        k++;
     }
+    printf("3seg %f\n",l/1000000.0);
 
     //two segments condition, 2-opt
     i=1;
     j=1;
-    while(i*j>0)
+    k=0;
+    l=0;
+    while(k<1000000)
     {
-        a=rand()%1000;
-        b=rand()%1000;
-        c=rand()%1000;
-        d=rand()%1000;
+        a=rand()%m;
+        b=rand()%m;
+        c=rand()%m;
+        d=rand()%m;
         i=a*a+b*b-c*c-d*d;
         j=a+b-c-d;
         if(i*j<0)
         {
-            printf("2-opt\n");
-            printf("i %d\n",i);
-            printf("j %d\n",j);
+            l++;
         }
-
+        k++;
+    }
+    printf("2seg %f\n",l/1000000.0);
     }
     return 0;
 }
