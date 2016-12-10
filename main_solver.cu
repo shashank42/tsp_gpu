@@ -46,6 +46,9 @@ int main(int argc, char *argv[]){
                " - The initial starting temperature. Default is 1000 \n"
                "(Optional) -decay: [float(1)]  \n"
                " - The decay rate for the annealing schedule. Default is .99 \n");
+               "(Optional) -maxiter: [integer(1)]  \n"
+               " - The maximum number of iterations until failure. \n"
+               "  Default is -1, which runs until temperature goes to the minimum.\n");
         return 1;
     }
     
@@ -61,6 +64,7 @@ int main(int argc, char *argv[]){
 	T[0] = 10000;
 	T[1] = 10000;
 	float decay = 0.99;
+	int maxiter = -1;
     // Get starting trip
 	for (i = 0; i <= N; i++)
 	    salesman_route[i] = i;
@@ -85,6 +89,15 @@ int main(int argc, char *argv[]){
 	            }
 	            T[0] = user_temp;
 	            T[1] = T[0];
+	        }
+	        if (strcmp(argv[i], "-maxiter=") == 0) {           
+                // If atof cannot convert to a float, it returns 0
+	            float user_iter = atoi(argv[i + 1]);
+	            if ( user_iter == 0){
+	                printf("Error: max iter cannot be zero\n");
+	                return 1;
+	            }
+	            maxiter = user_iter;
 	        }
             if (strcmp(argv[i], "-decay=") == 0) {           
                 // If atoi cannot convert to number, it returns 0
@@ -212,7 +225,7 @@ int main(int argc, char *argv[]){
 		cudaCheckError();
 		i = 1;
         kk = 1;
-		while (i<1000){
+		while (i<1500){
 
 			globalSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      location_g, salesman_route_g,
@@ -276,7 +289,7 @@ int main(int argc, char *argv[]){
 			*/
 				                                                      
 			// We put more emphasis on 2-opt routes
-			 while(kk < 1000){
+			 while(kk < 1500){
 
                  global2Opt<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                          location_g, salesman_route_g,
@@ -333,6 +346,8 @@ int main(int argc, char *argv[]){
 	            T[0] = T[0] * 0.8;
 	            }
 	    }
+	    if (maxiter > 0 && maxiter < iter)
+	        break;
 	}
 	//print time spent
 	t_end = time(NULL);

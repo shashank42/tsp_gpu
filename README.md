@@ -29,6 +29,9 @@ input_file.tsp: [char()]
   The initial starting temperature. Default is 10000 
 -decay: [float(1)]  
   The decay rate for the annealing schedule. Default is .99 
+(Optional) -maxiter: [integer(1)]  
+- The maximum number of iterations until failure. 
+Default is -1, which runs until temperature goes to the minimum.
 ```
 
 The program will output a csv of the best trip found throughout the simulated annealing process.

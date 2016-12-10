@@ -60,7 +60,10 @@ __global__ static void global2Opt(unsigned int* city_one,
                 city_two_swap = N[0] - 1;
             if (city_two_swap == 0)
                 city_two_swap = 1;
-
+                
+        if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4)
+            city_two_swap = city_one_swap + 2;
+            
 	    city_one[tid] = city_one_swap;
 	    city_two[tid] = city_two_swap;
 
@@ -132,7 +135,7 @@ __global__ static void local2Opt(unsigned int* city_one,
 		global_flag[0] = -1;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(15 + exp(- (T[1] * 2) / T[0]) * (float)N[0]);
+	int sample_space = (int)floor(5 + exp(- (T[1] * 2) / T[0]) * (float)N[0]);
 	while (global_flag[0] ==  -1 && iter < 4){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
@@ -159,6 +162,9 @@ __global__ static void local2Opt(unsigned int* city_one,
             city_two_swap = N[0] - 1;
         if (city_two_swap == 0)
             city_two_swap = 1;
+            
+        if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4)
+            city_two_swap = city_one_swap + 2;
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
