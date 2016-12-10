@@ -147,7 +147,7 @@ int main(int argc, char *argv[]){
 	unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *salesman_route_g, *salesman_route_2g, *salesman_route_restartg, *flag_g, *city_swap_one_g, *city_swap_two_g;
-	unsigned int global_flag_h = 0, *global_flag_g;
+	int global_flag_h = 0, *global_flag_g;
 
 	cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
@@ -165,7 +165,7 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g, sizeof(int));
 	cudaCheckError();
 	cudaMalloc((void**)&N_g, sizeof(unsigned int));
 	cudaCheckError();
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaMemcpy(salesman_route_restartg, salesman_route, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	cudaMemcpy(global_flag_g, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();

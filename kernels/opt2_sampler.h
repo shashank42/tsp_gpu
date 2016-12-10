@@ -25,17 +25,17 @@ __global__ static void global2Opt(unsigned int* city_one,
 	coordinates* __restrict__ location,
 	unsigned int* __restrict__ salesman_route,
 	float* __restrict__ T,
-	volatile unsigned int *global_flag,
+	volatile int *global_flag,
 	unsigned int* __restrict__ N,
 	curandState_t* states){
 
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid == 0)
-		global_flag[0] = 0;
+		global_flag[0] = -1;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
 	int sample_space = (int)floor(25 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
-	while (global_flag[0] == 0 && iter < 10){
+	while (global_flag[0] ==  -1 && iter < 10){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
@@ -97,19 +97,19 @@ __global__ static void global2Opt(unsigned int* city_one,
 
 
 		//I think if we have three methods, there's no need for acceptance...
-        if (proposal_dist < original_dist && global_flag[0] == 0){
+        if (proposal_dist < original_dist && global_flag[0] ==  -1){
             global_flag[0] = tid;
             __threadfence();
 	    }
 	    if (T[0] > 1){
-	    if (global_flag[0]==0){
+	    if (global_flag[0] == -1){
             quotient = proposal_dist / original_dist - 1;
             // You can change the constant to whatever you would like
 		    // But you should check that the graph looks nice
 		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
             p = exp(-(quotient * T[1] * 4000) / T[0]);
             myrandf = curand_uniform(&states[tid]);
-            if (p > myrandf && global_flag[0]<tid){
+            if (p > myrandf && global_flag[0] == -1){
                 global_flag[0] = tid;
                 __syncthreads();
             }
@@ -124,14 +124,14 @@ __global__ static void Opt2Update(unsigned int* __restrict__ city_one,
 	unsigned int* __restrict__ city_two,
 	unsigned int* salesman_route,
 	unsigned int* salesman_route2,
-	volatile unsigned int *global_flag){
+	volatile int *global_flag){
 
 	// each thread is a position in the salesman's trip
 	const int xid = blockIdx.x * blockDim.x + threadIdx.x;
 	/*
 	remember to refresh route2 before calling this function, just like insertion
 	*/
-	if (global_flag[0] != 0){
+	if (global_flag[0] != -1){
 		unsigned int city_one_swap = city_one[global_flag[0]];
 		unsigned int city_two_swap = city_two[global_flag[0]];
 
