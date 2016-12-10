@@ -34,34 +34,33 @@ __global__ static void global2Opt(unsigned int* city_one,
 		global_flag[0] = -1;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(25 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
+	int sample_space = (int)floor(15 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
 	while (global_flag[0] ==  -1 && iter < 10){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
 		myrandf += 1.0;
 		int city_one_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0] - 33;
-        if (city_one_swap <= 0) city_one_swap += -(city_one_swap)/N[0] * N[0] + 3;
+        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0];
+        if (city_one_swap <= 0) city_one_swap += -(city_one_swap/N[0] + 1) * N[0];
+        if (city_one_swap >= N[0]-5)
+            city_one_swap = N[0] - 5;
+        if (city_one_swap == 0)
+            city_one_swap = 2;
 		// +1,wrong;+2,equivalent to swap; so start with +3
-		int min_city_two = city_one_swap+3;
+		int min_city_two = city_one_swap + 2;
 
-		int max_city_two = (city_one_swap + 3 + sample_space < N[0]-1) ?
-			city_one_swap+ 3 + sample_space :
+		int max_city_two = (city_one_swap + 2 + sample_space < N[0]-1) ?
+			city_one_swap+ 2 + sample_space :
 			(N[0] - 1);
 		myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
-        if (city_one_swap >= N[0]-5)
-            city_one_swap = N[0] - 5;
-        if (city_one_swap == 0)
-            city_one_swap = 2;
-        
         if (city_two_swap >= N[0])
-            city_two_swap = N[0] - 2;
+            city_two_swap = N[0] - 1;
         if (city_two_swap == 0)
-            city_two_swap = 2;
+            city_two_swap = 1;
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
