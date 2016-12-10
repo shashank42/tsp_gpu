@@ -205,7 +205,7 @@ int main(int argc, char *argv[]){
 	int sames = 0;
 
     
-	while (T[0] > 0.01/log(2*N))
+	while (T[0] > 0.1/log(2*N))
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, 2 * sizeof(float), cudaMemcpyHostToDevice);
@@ -218,21 +218,21 @@ int main(int argc, char *argv[]){
 				                                                      location_g, salesman_route_g,
 				                                                      T_g, global_flag_g, N_g,
 				                                                      states);  
-			cudaCheckError();
+			//cudaCheckError();
 			
 			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      salesman_route_g, global_flag_g);
-			cudaCheckError();
+			//cudaCheckError();
 			
 			localSwap <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                     location_g, salesman_route_g,
 				                                                     T_g, global_flag_g, N_g,
 				                                                     states); 
-			cudaCheckError();
+			//cudaCheckError();
 			
 			SwapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				                                                      salesman_route_g, global_flag_g);
-			cudaCheckError();
+			//cudaCheckError();
 		/*
 			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]){
 				                                                         salesman_route_g, salesman_route_2g,
 				                                                         global_flag_g);
             cudaCheckError();
-            
+            /*
 			InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			
@@ -285,7 +285,7 @@ int main(int argc, char *argv[]){
                  //cudaCheckError();
                 
                  InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-                 cudaCheckError();
+                 //cudaCheckError();
                  Opt2Update<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
                                                                         salesman_route_g, salesman_route_2g,
                                                                         global_flag_g);
