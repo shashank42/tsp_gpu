@@ -287,7 +287,20 @@ int main(int argc, char *argv[]){
                  InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
                  cudaCheckError();
                  Opt2Update<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-                                                                              salesman_route_g, salesman_route_2g, global_flag_g);
+                                                                        salesman_route_g, salesman_route_2g,
+                                                                        global_flag_g);
+                 //cudaCheckError();
+                 local2Opt<<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				                                                          location_g, salesman_route_g,
+                                                                          T_g, global_flag_g, N_g,
+                                                                          states);
+                 //cudaCheckError();
+                
+                 InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+                 cudaCheckError();
+                 Opt2Update<<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+                                                                        salesman_route_g, salesman_route_2g,
+                                                                        global_flag_g);
                  //cudaCheckError();
                  
 			     kk++;

@@ -34,15 +34,114 @@ __global__ static void global2Opt(unsigned int* city_one,
 		global_flag[0] = -1;
 	int iter = 0;
 	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
-	int sample_space = (int)floor(15 + exp(- (T[1] / 15) / T[0]) * (float)N[0]);
-	while (global_flag[0] ==  -1 && iter < 10){
+	int sample_space = (int)floor(15 + exp(- (T[1] / 20) / T[0]) * (float)N[0]);
+	while (global_flag[0] ==  -1 && iter < 4){
         //the first city's indice has to be smaller than the second, to simplify the algo
 		float myrandf = curand_uniform(&states[tid]);
 		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
 		myrandf += 1.0;
 		int city_one_swap = (int)truncf(myrandf);
         if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0];
-        if (city_one_swap <= 0) city_one_swap += -(city_one_swap/N[0] + 1) * N[0];
+        if (city_one_swap <= 0) city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
+        if (city_one_swap >= N[0]-5)
+            city_one_swap = N[0] - 5;
+        if (city_one_swap <= 0)
+            city_one_swap = 2;
+		// +1,wrong;+2,equivalent to swap; so start with +3
+		int min_city_two = city_one_swap + 2;
+
+		int max_city_two = (city_one_swap + 2 + sample_space < N[0]-1) ?
+			city_one_swap+ 2 + sample_space :
+			(N[0] - 1);
+		myrandf = curand_uniform(&states[tid]);
+		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
+		myrandf += min_city_two;
+		int city_two_swap = (int)truncf(myrandf);
+        if (city_two_swap >= N[0])
+            city_two_swap = N[0] - 1;
+        if (city_two_swap == 0)
+            city_two_swap = 1;
+
+		city_one[tid] = city_one_swap;
+		city_two[tid] = city_two_swap;
+
+		float quotient, p;
+		// Set the swap cities in the trip.
+		unsigned int trip_city_one = salesman_route[city_one_swap];
+		unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
+		unsigned int trip_city_two = salesman_route[city_two_swap];
+		unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
+		float original_dist = 0;
+		float proposal_dist = 0;
+
+
+
+		// very simple relationship
+		original_dist += (location[trip_city_one_post].x - location[trip_city_one].x) *
+			(location[trip_city_one_post].x - location[trip_city_one].x) +
+			(location[trip_city_one_post].y - location[trip_city_one].y) *
+			(location[trip_city_one_post].y - location[trip_city_one].y);
+		original_dist += (location[trip_city_two_post].x - location[trip_city_two].x) *
+			(location[trip_city_two_post].x - location[trip_city_two].x) +
+			(location[trip_city_two_post].y - location[trip_city_two].y) *
+			(location[trip_city_two_post].y - location[trip_city_two].y);
+		proposal_dist += (location[trip_city_two].x - location[trip_city_one].x) *
+			(location[trip_city_two].x - location[trip_city_one].x) +
+			(location[trip_city_two].y - location[trip_city_one].y) *
+			(location[trip_city_two].y - location[trip_city_one].y);
+		proposal_dist += (location[trip_city_two_post].x - location[trip_city_one_post].x) *
+			(location[trip_city_two_post].x - location[trip_city_one_post].x) +
+			(location[trip_city_two_post].y - location[trip_city_one_post].y) *
+            (location[trip_city_two_post].y - location[trip_city_one_post].y);
+
+
+		//I think if we have three methods, there's no need for acceptance...
+        if (proposal_dist < original_dist && global_flag[0] ==  -1){
+            global_flag[0] = tid;
+            __threadfence();
+	    }
+	    if (global_flag[0] == -1){
+            quotient = proposal_dist / original_dist - 1;
+            // You can change the constant to whatever you would like
+		    // But you should check that the graph looks nice
+		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
+            p = exp(-(quotient * T[1] ) / T[0]);
+            myrandf = curand_uniform(&states[tid]);
+            if (p > myrandf && global_flag[0] == -1){
+                global_flag[0] = tid;
+                __threadfence();
+            }
+        }
+        
+        iter++;
+	}
+	//seed[tid] = r_r;   //refresh the seed at the end of kernel
+}
+
+
+__global__ static void local2Opt(unsigned int* city_one,
+	unsigned int* city_two,
+	coordinates* __restrict__ location,
+	unsigned int* __restrict__ salesman_route,
+	float* __restrict__ T,
+	volatile int *global_flag,
+	unsigned int* __restrict__ N,
+	curandState_t* states){
+
+	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid == 0)
+		global_flag[0] = -1;
+	int iter = 0;
+	//insertion and swap all decrease to 1 at last, so I set it a little larger,30
+	int sample_space = (int)floor(15 + exp(- (T[1] * 2) / T[0]) * (float)N[0]);
+	while (global_flag[0] ==  -1 && iter < 4){
+        //the first city's indice has to be smaller than the second, to simplify the algo
+		float myrandf = curand_uniform(&states[tid]);
+		myrandf *= ((float)(N[0] - 5) - 1.0 + 0.9999999999999999);
+		myrandf += 1.0;
+		int city_one_swap = (int)truncf(myrandf);
+        if (city_one_swap >= N[0]) city_one_swap -= (city_one_swap)/N[0] * N[0];
+        if (city_one_swap <= 0) city_one_swap += (-city_one_swap/N[0] + 1) * N[0];
         if (city_one_swap >= N[0]-5)
             city_one_swap = N[0] - 5;
         if (city_one_swap == 0)
@@ -100,20 +199,19 @@ __global__ static void global2Opt(unsigned int* city_one,
             global_flag[0] = tid;
             __threadfence();
 	    }
-	    if (T[0] > 1){
 	    if (global_flag[0] == -1){
             quotient = proposal_dist / original_dist - 1;
             // You can change the constant to whatever you would like
 		    // But you should check that the graph looks nice
 		    //http://www.wolframalpha.com/input/?i=e%5E(-(x*(10000%2F5))%2Ft)+x+%3D+0+to+3+and+t+%3D+0+to+10000
-            p = exp(-(quotient * T[1] * 4000) / T[0]);
+            p = exp(-(quotient * T[1] ) / T[0]);
             myrandf = curand_uniform(&states[tid]);
             if (p > myrandf && global_flag[0] == -1){
                 global_flag[0] = tid;
-                __syncthreads();
+                __threadfence();
             }
         }
-        }
+        
         iter++;
 	}
 	//seed[tid] = r_r;   //refresh the seed at the end of kernel
