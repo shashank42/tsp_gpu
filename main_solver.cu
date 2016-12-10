@@ -45,7 +45,7 @@ int main(int argc, char *argv[]){
                "(Optional) -temp: [float(1)] \n" 
                " - The initial starting temperature. Default is 1000 \n"
                "(Optional) -decay: [float(1)]  \n"
-               " - The decay rate for the annealing schedule. Default is .99 \n");
+               " - The decay rate for the annealing schedule. Default is .99 \n"
                "(Optional) -maxiter: [integer(1)]  \n"
                " - The maximum number of iterations until failure. \n"
                "  Default is -1, which runs until temperature goes to the minimum.\n");
