@@ -43,7 +43,21 @@ __global__ static void insertionStep(unsigned int* city_one,
 	myrandf *= ((float)(N[0] - 2) - 4.0 + 0.9999999999999999);
 	myrandf += 4.0;
 	int city_one_swap = (int)truncf(myrandf);
+	
+	// Trying out normally distributed swap step
+    int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
+    
+    // One is added here so that if we have city two == N, then it bumps it up to 1
+    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
+    // this is N[0] - 2 because we cannot have a value of N[0] - 1,
+    // So 0 + N[0] -> N[0] - 1, normally, but doing -2 gives N[0] - 2
+    if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
+    
+    // Check it ||city_two - city one|| < 9, if so bump it up one
+    if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
+        city_two_swap = city_one_swap - 3;
 
+/*
 	// We need to set the min and max of the second city swap
 	int max_city_two = city_one_swap - 3;
 
@@ -55,8 +69,7 @@ __global__ static void insertionStep(unsigned int* city_one,
 	myrandf += min_city_two;
 	int city_two_swap = (int)truncf(myrandf);
 
-	// END NEW
-
+*/
 
 	if (city_two_swap != (N[0] - 1) && city_two_swap != city_one_swap && city_two_swap != city_one_swap - 1)
 	{

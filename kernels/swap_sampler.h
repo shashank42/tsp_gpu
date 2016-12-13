@@ -43,15 +43,22 @@ __global__ static void swapStep(unsigned int* city_one,
     while (iter < 5){
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-    // FIXME: This isn't hitting 99,9999???
     float myrandf = curand_uniform(&states[tid]);
     myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
     myrandf += 4.0;
     int city_one_swap = (int)truncf(myrandf);
 
-
-
-
+    // Trying out normally distributed swap step
+    int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
+    
+    // One is added here so that if we have city two == N, then it bumps it up to 1
+    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
+    if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
+    
+    // Check it ||city_two - city one|| < 9, if so bump it up one
+    if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
+        city_two_swap = city_one_swap + 3;
+/*
     // We need to set the min and max of the second city swap
 	int min_city_two = city_one_swap + 3;
     int max_city_two = (city_one_swap +3+ sample_space < N[0])?
@@ -68,7 +75,7 @@ __global__ static void swapStep(unsigned int* city_one,
         city_one_swap = (N[0] - 1);
     if (city_two_swap >= N[0])
         city_two_swap = (N[0] - 1);
-
+*/
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
