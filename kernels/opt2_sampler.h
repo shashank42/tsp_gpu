@@ -20,19 +20,24 @@ Input:
  > The seeds for each proposal steps random sample
 */
 
-__global__ static void global2Opt(unsigned int* city_one,
+__global__ static void twoOptStep(unsigned int* city_one,
 	unsigned int* city_two,
 	coordinates* __restrict__ location,
 	unsigned int* __restrict__ salesman_route,
 	float* __restrict__ T,
 	volatile unsigned int *global_flag,
 	unsigned int* __restrict__ N,
-	curandState_t* states){
+	curandState_t* states,
+	float* sample_area){
 
 	const unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid == 0)
 		global_flag[0] = 0;
 	int iter = 0;
+	// This is the maximum we can sample from
+	// This gives us a nice curve
+	//http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
+	int sample_space = (int)floor(30 + exp(-sample_area[0] / T[0]) * (float)N[0]);
 	// Run until either global flag is zero and we do 100 iterations is false.
 	while (iter < 10){
 		// Generate the first city
@@ -45,10 +50,7 @@ __global__ static void global2Opt(unsigned int* city_one,
 
 
 
-		// This is the maximum we can sample from
-		// This gives us a nice curve
-		//http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-		int sample_space = (int)floor(30 + exp(-0.01 / T[0]) * (float)N[0]);
+
 		// We need to set the min and max of the second city swap
 		int min_city_two = city_one_swap+2;
 

@@ -20,130 +20,23 @@ Input:
 - states [curandState_t(GRID_SIZE)]
  > The seeds for each proposal steps random sample
 */
-__global__ static void localInsertion(unsigned int* city_one,
-                           unsigned int* city_two,
-                           coordinates* __restrict__ location,
-                           unsigned int* __restrict__ salesman_route,
-                           float* __restrict__ T,
-                           volatile unsigned int *global_flag,
-                           unsigned int* __restrict__ N,
-                           curandState_t* states){
-    //first, refresh the route, this time we have to change city_one-city_two elements
-    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	if (tid == 0)
-		global_flag[0] = 0;
 
-
-      // Generate the first city
-    // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
-    float myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0] - 4) - 1.0+0.9999999999999999);
-    myrandf += 1.0;
-    int city_one_swap = (int)truncf(myrandf);
-
-
-
-    // This is the maximum we can sample from
-    int sample_space = (int)floor(20+exp(- 0.01 / T[0]) * N[0]);
-    // We need to set the min and max of the second city swap
-	int min_city_two = city_one_swap + 2;
-
-    int max_city_two = (city_one_swap +2+ sample_space < N[0]-1)?
-        city_one_swap +2+ sample_space:
-            (N[0] - 2);
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-    myrandf += min_city_two;
-    int city_two_swap = (int)truncf(myrandf);
-
-    // END NEW
-
-
-    if (city_two_swap !=(N[0]-1) && city_two_swap!=city_one_swap && city_two_swap!=city_one_swap-1)
-    {
-        city_one[tid] = city_one_swap;
-        city_two[tid] = city_two_swap;
-
-        float quotient, p;
-        unsigned int trip_city_one = salesman_route[city_one_swap];
-        unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
-        unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
-
-        unsigned int trip_city_two = salesman_route[city_two_swap];
-        unsigned int trip_city_two_post = salesman_route[city_two_swap + 1];
-        // The original and post distances
-        float original_dist = 0;
-        float proposal_dist = 0;
-
-        /* City one is the city to be inserted between city two and city two + 1
-           That means we only have to make three calculations to compute each loss funciton
-           original:
-             - city one - 1 -> city one
-             - city one -> city one + 1
-             - City two -> city two + 1
-           proposal:
-             - city two -> city one
-             - city one -> city two + 1
-             - city one - 1 -> city one + 1
-        */
-		original_dist += sqrtf((location[trip_city_one_pre].x - location[trip_city_one].x) *
-			(location[trip_city_one_pre].x - location[trip_city_one].x) +
-			(location[trip_city_one_pre].y - location[trip_city_one].y) *
-			(location[trip_city_one_pre].y - location[trip_city_one].y));
-		original_dist += sqrtf((location[trip_city_one_post].x - location[trip_city_one].x) *
-			(location[trip_city_one_post].x - location[trip_city_one].x) +
-			(location[trip_city_one_post].y - location[trip_city_one].y) *
-			(location[trip_city_one_post].y - location[trip_city_one].y));
-		original_dist += sqrtf((location[trip_city_two_post].x - location[trip_city_two].x) *
-			(location[trip_city_two_post].x - location[trip_city_two].x) +
-			(location[trip_city_two_post].y - location[trip_city_two].y) *
-			(location[trip_city_two_post].y - location[trip_city_two].y));
-
-		proposal_dist += sqrtf((location[trip_city_two].x - location[trip_city_one].x) *
-			(location[trip_city_two].x - location[trip_city_one].x) +
-			(location[trip_city_two].y - location[trip_city_one].y) *
-			(location[trip_city_two].y - location[trip_city_one].y));
-		proposal_dist += sqrtf((location[trip_city_two_post].x - location[trip_city_one].x) *
-			(location[trip_city_two_post].x - location[trip_city_one].x) +
-			(location[trip_city_two_post].y - location[trip_city_one].y) *
-			(location[trip_city_two_post].y - location[trip_city_one].y));
-		proposal_dist += sqrtf((location[trip_city_one_pre].x - location[trip_city_one_post].x) *
-			(location[trip_city_one_pre].x - location[trip_city_one_post].x) +
-			(location[trip_city_one_pre].y - location[trip_city_one_post].y) *
-			(location[trip_city_one_pre].y - location[trip_city_one_post].y));
-        //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
-        //because if I pick the small one, I have to tell whether the flag is 0
-     if (proposal_dist < original_dist&&global_flag[0]<tid){
-        global_flag[0] = tid;
-		__threadfence();
-	 }
-	 else if (global_flag[0]==0)
-	 {
-        quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*600 / T[0]);
-        myrandf = curand_uniform(&states[tid]);
-        if (p > myrandf && global_flag[0]<tid){
-            global_flag[0] = tid;
-            __syncthreads();
-        }
-     }
-    }
-}
-
-__global__ static void GlobalInsertion(unsigned int* city_one,
+__global__ static void insertionStep(unsigned int* city_one,
 	unsigned int* city_two,
 	coordinates* __restrict__ location,
 	unsigned int* __restrict__ salesman_route,
 	float* __restrict__ T,
 	volatile unsigned int *global_flag,
 	unsigned int* __restrict__ N,
-	curandState_t* states){
+	curandState_t* states,
+	float* sample_area){
 	//first, refresh the route, this time we have to change city_one-city_two elements
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid == 0)
 		global_flag[0] = 0;
 
-
+    // This is the maximum we can sample from
+	int sample_space = (int)floor(30 + exp(- sample_area[0] / T[0]) * N[0]);
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 	float myrandf = curand_uniform(&states[tid]);
@@ -151,10 +44,6 @@ __global__ static void GlobalInsertion(unsigned int* city_one,
 	myrandf += 4.0;
 	int city_one_swap = (int)truncf(myrandf);
 
-
-
-	// This is the maximum we can sample from
-	int sample_space = (int)floor(30 + exp(-0.01 / T[0]) * N[0]);
 	// We need to set the min and max of the second city swap
 	int max_city_two = city_one_swap - 3;
 
@@ -230,7 +119,7 @@ __global__ static void GlobalInsertion(unsigned int* city_one,
 		else if (global_flag[0]==0)
 		{
 		quotient = proposal_dist/original_dist-1;
-		p = exp(-quotient*600 / T[0]);
+		p = exp(-quotient*6000 / T[0]);
 		myrandf = curand_uniform(&states[tid]);
 		if (p > myrandf && global_flag[0]<tid){
 		global_flag[0] = tid;
@@ -241,14 +130,14 @@ __global__ static void GlobalInsertion(unsigned int* city_one,
 }
 
 
-__global__ static void InsertionUpdateTrip(unsigned int* salesman_route, unsigned int* salesman_route2, unsigned int* __restrict__ N){
+__global__ static void insertionUpdateTrip(unsigned int* salesman_route, unsigned int* salesman_route2, unsigned int* __restrict__ N){
 
     unsigned int xid = blockIdx.x * blockDim.x + threadIdx.x;
     if (xid < N[0])
         salesman_route2[xid] = salesman_route[xid];
 }
 
-__global__ static void InsertionUpdate2(unsigned int* __restrict__ city_one,
+__global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
                            unsigned int* salesman_route2,
@@ -281,7 +170,7 @@ __global__ static void InsertionUpdate2(unsigned int* __restrict__ city_one,
     }
 }
 
-__global__ static void tspInsertionUpdate(unsigned int* __restrict__ city_one,
+__global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
                            volatile unsigned int *global_flag){

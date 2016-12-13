@@ -61,8 +61,10 @@ int main(int argc, char *argv[]){
 	read_tsp(tsp_name);
     unsigned int N = meta->dim, *N_g;
 	unsigned int i;
-unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
-
+    unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned int));
+    float sample_area_local, sample_area_global, *sample_area_local_g, *sample_area_global_g;
+    sample_area_global = 0.01;
+    sample_area_local = 1;
 	// just make one inital guess route, a simple linear path
 	for (i = 0; i <= N; i++)
 		salesman_route[i] = i;
@@ -121,6 +123,26 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 	               decay = user_decay;
 	            }    
             }
+            if (strcmp(argv[i], "-global_search=") == 0) {           
+                // If atoi cannot convert to number, it returns 0
+                float user_global = atof(argv[i + 1]);
+	            if (user_global == 0){
+	                printf("Error: global search param must be greater than 0. \n");
+	                return 1;
+	            } else {
+	               sample_area_global = user_global;
+	            }    
+            }
+            if (strcmp(argv[i], "-local_search=") == 0) {           
+                // If atoi cannot convert to number, it returns 0
+                float user_local = atof(argv[i + 1]);
+	            if (user_local == 0){
+	                printf("Error: local search param must be greater than 0. \n");
+	                return 1;
+	            } else {
+	               sample_area_local = user_local;
+	            }    
+            }
         }
     }
 
@@ -161,6 +183,7 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 	unsigned int global_flag_h = 0, *global_flag_g_1, *global_flag_g_2, *global_flag_g_3;
 	unsigned int *global_flag_g_4, *global_flag_g_5;
 
+    
 	cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
 	cudaMalloc((void**)&city_swap_two_g, GRID_SIZE * sizeof(unsigned int));
@@ -174,6 +197,10 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 	cudaMalloc((void**)&salesman_route_restartg, (N + 1) * sizeof(unsigned int));
     cudaCheckError();
 	cudaMalloc((void**)&T_g, sizeof(float));
+	cudaCheckError();
+	cudaMalloc((void**)&sample_area_global_g, sizeof(float));
+	cudaCheckError();
+    cudaMalloc((void**)&sample_area_local_g,  sizeof(float));
 	cudaCheckError();
 	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
 	cudaCheckError();
@@ -211,6 +238,10 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
+	cudaMemcpy(sample_area_global_g, &sample_area_global, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaCheckError();
+	cudaMemcpy(sample_area_local_g, &sample_area_local,  sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaCheckError();
 	// Beta is the decay rate
 	//float beta = 0.0001;
 	// We are going to try some stuff for temp from this adaptive simulated annealing paper
@@ -246,75 +277,75 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 			if (e != cudaSuccess) {
 				printf(" Temperature was %.6f on failure\n", T[0]);
 			} 
-			globalSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_1, N_g,
-				states); 
+				states, sample_area_global_g); 
 			cudaCheckError();
 			
-			SwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g_1);
 			cudaCheckError();
 			
-			localSwap << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_2, N_g,
-				states);
+				states,sample_area_local_g);
 			cudaCheckError();
 			
-			SwapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g_2); 
 			cudaCheckError(); 
 		
-			global2Opt << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			twoOptStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g, 
 				T_g, global_flag_g_3, N_g,
-				states);
+				states, sample_area_global_g);
 			cudaCheckError(); 
 			
-			InsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			
 			opt2Update << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_3);
 			cudaCheckError();
 			
-			global2Opt << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			twoOptStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_3, N_g,
-				states);
+				states, sample_area_local_g);
 			cudaCheckError();
 			
-			InsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			
 			opt2Update << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_3);
 			cudaCheckError();
 
-			GlobalInsertion << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			insertionStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_4, N_g,
-				states);
+				states, sample_area_global_g);
 			cudaCheckError();
 			
-			InsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			
-			InsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			insertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_4);
 			cudaCheckError(); 
 			
-			localInsertion << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			insertionStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_5, N_g,
-				states);
+				states, sample_area_local_g);
 			cudaCheckError();
 			
-			InsertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
+			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
 			cudaCheckError();
 			
-			InsertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+		    insertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_5);
 			cudaCheckError();
 
@@ -335,10 +366,11 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 		// This grabs the best trip overall
 		if (optimized_loss < optimized_loss_restart){
 		    optimized_loss_restart = optimized_loss;
-		    InsertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
+		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
 			cudaCheckError();
 			sames = 0;
-	    } else if (optimized_loss == optimized_loss_restart){
+	    } else if (abs(optimized_loss - optimized_loss_restart) < 2){
+	    // If we are only gaining by one then we can start speeding things up
 	        sames++;
 	        if (sames > 10){
 	            T[0] = T[0] * 0.8;
@@ -405,6 +437,10 @@ unsigned int *salesman_route = (unsigned int *)malloc((N + 1) * sizeof(unsigned 
 	cudaFree(flag_g);
 	cudaCheckError();
 	cudaFree(salesman_route_restartg);
+	cudaCheckError();
+	cudaFree(sample_area_global_g);
+	cudaCheckError();
+	cudaFree(sample_area_local_g);
 	cudaCheckError();
 	free(salesman_route);
 	free(city_swap_one_h);
