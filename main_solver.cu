@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
                "  See An example of what this controls here:\n"
                "(Optional) -local_search: [float(1)]  \n"
                " - A parameter that controls the variance of the second city search space,\n"
-               "   such that the variance is [30 + exp(local_search/Temp) * N]. default is .01.\n");
+               "   such that the variance is [30 + exp(local_search/Temp) * N]. default is 1.\n");
                
         return 1;
     }
