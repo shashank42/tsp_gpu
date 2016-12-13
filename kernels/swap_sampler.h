@@ -26,7 +26,7 @@ __global__ static void swapStep(unsigned int* city_one,
                            coordinates* __restrict__ location,
                            unsigned int* __restrict__ salesman_route,
                            float* __restrict__ T,
-                           volatile unsigned int *global_flag,
+                           volatile int *global_flag,
                            unsigned int* __restrict__ N,
                            curandState_t* states,
                            float * sample_area){
@@ -34,7 +34,7 @@ __global__ static void swapStep(unsigned int* city_one,
     const unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int iter = 0;
 	if (tid == 0)
-		global_flag[0] = 0;
+		global_flag[0] = -1;
     // Run until either global flag is zero and we do 100 iterations is false.
     // This is the maximum we can sample from
     // This gives us a nice curve
@@ -135,22 +135,22 @@ __global__ static void swapStep(unsigned int* city_one,
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is 0
-	  if (proposal_dist < original_dist&&global_flag[0]<tid){
+	  if (proposal_dist < original_dist && global_flag[0] == -1){
 		  global_flag[0] = tid;
 		  __threadfence();
 	  }
-	  else if (global_flag[0]==0)
+	  else if (global_flag[0] == -1)
 	{
         quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient*6000 / T[0]);
+        p = exp(-quotient * 6000 / T[0]);
         myrandf = curand_uniform(&states[tid]);
-        if (p > myrandf && global_flag[0]<tid){
+        if (p > myrandf && global_flag[0] == -1){
             global_flag[0] = tid;
             __syncthreads();
         }
      }
     iter++;
-	if (global_flag[0] != 0)
+	if (global_flag[0] != -1)
 		iter += 100;
     }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
@@ -160,17 +160,17 @@ __global__ static void swapStep(unsigned int* city_one,
 __global__ static void swapUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* __restrict__ salesman_route,
-                           volatile unsigned int *global_flag){
+                           volatile int *global_flag){
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tmp;
     // use thread 0 to refresh the route
     if (tid == 0){
-        if (global_flag[0] != 0){
+        if (global_flag[0] != -1){
             tmp = salesman_route[city_one[global_flag[0]]];
             salesman_route[city_one[global_flag[0]]] = salesman_route[city_two[global_flag[0]]];
             salesman_route[city_two[global_flag[0]]] = tmp;
-            global_flag[0] = 0;
+            global_flag[0] = -1;
         }
     }
     __syncthreads();

@@ -26,14 +26,14 @@ __global__ static void insertionStep(unsigned int* city_one,
 	coordinates* __restrict__ location,
 	unsigned int* __restrict__ salesman_route,
 	float* __restrict__ T,
-	volatile unsigned int *global_flag,
+	volatile int *global_flag,
 	unsigned int* __restrict__ N,
 	curandState_t* states,
 	float* sample_area){
 	//first, refresh the route, this time we have to change city_one-city_two elements
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid == 0)
-		global_flag[0] = 0;
+		global_flag[0] = -1;
 
     // This is the maximum we can sample from
 	int sample_space = (int)floor(30 + exp(- sample_area[0] / T[0]) * N[0]);
@@ -125,19 +125,21 @@ __global__ static void insertionStep(unsigned int* city_one,
 			(location[trip_city_one_pre].y - location[trip_city_one_post].y));
 		//picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
 		//because if I pick the small one, I have to tell whether the flag is 0
-		if (proposal_dist < original_dist&&global_flag[0]<tid){
+		if (proposal_dist < original_dist&&global_flag[0] == -1)
+		{
 			global_flag[0] = tid;
 			__threadfence();
 		}
-		else if (global_flag[0]==0)
+		else if (global_flag[0] == -1)
 		{
-		quotient = proposal_dist/original_dist-1;
-		p = exp(-quotient*6000 / T[0]);
-		myrandf = curand_uniform(&states[tid]);
-		if (p > myrandf && global_flag[0]<tid){
-		global_flag[0] = tid;
-		__syncthreads();
-		}
+		    quotient = proposal_dist/original_dist-1;
+		    p = exp(-quotient*6000 / T[0]);
+		    myrandf = curand_uniform(&states[tid]);
+		    if (p > myrandf && global_flag[0] == -1)
+		    {
+		        global_flag[0] = tid;
+		        __syncthreads();
+		    }
 		}
 	}
 }
@@ -154,7 +156,7 @@ __global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
                            unsigned int* salesman_route2,
-                           volatile unsigned int *global_flag){
+                           volatile int* global_flag){
 
     // each thread is a position in the salesman's trip
     const int xid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -163,7 +165,7 @@ __global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
       2. Shift everything between city one and city two up or down, depending on city one < city two
       3. Set city two's old position to city one
     */
-    if (global_flag[0] != 0){
+    if (global_flag[0] != -1){
         unsigned int city_one_swap = city_one[global_flag[0]];
         unsigned int city_two_swap = city_two[global_flag[0]];
 
@@ -186,11 +188,11 @@ __global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
 __global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
-                           volatile unsigned int *global_flag){
+                           volatile int* global_flag){
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tmp;
     int indicator;
-    if (global_flag[0] != 0){
+    if (global_flag[0] != -1){
         indicator=city_one[global_flag[0]]-city_two[global_flag[0]];
         if(indicator>0)
         {
@@ -228,7 +230,7 @@ __global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
     }
     if(tid==0)
     {
-        global_flag[0]=0;
+        global_flag[0]=-1;
     }
     __syncthreads();
 }

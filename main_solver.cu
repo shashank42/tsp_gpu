@@ -52,7 +52,15 @@ int main(int argc, char *argv[]){
                " - The decay rate for the annealing schedule. Default is .99 \n"
                "(Optional) -maxiter: [integer(1)]  \n"
                " - The maximum number of iterations until failure. \n"
-               "  Default is -1, which runs until temperature goes to the minimum.\n");
+               "  Default is -1, which runs until temperature goes to the minimum.\n"
+               "(Optional) -global_search: [float(1)]  \n"
+               " - A parameter that controls the variance of the second city search space,\n"
+               "   such that the variance is [30 + exp(global_search/Temp) * N]. default is .01.\n"
+               "  See An example of what this controls here:\n"
+               "(Optional) -local_search: [float(1)]  \n"
+               " - A parameter that controls the variance of the second city search space,\n"
+               "   such that the variance is [30 + exp(local_search/Temp) * N]. default is .01.\n");
+               
         return 1;
     }
     
@@ -180,8 +188,8 @@ int main(int argc, char *argv[]){
 	unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *salesman_route_g, *salesman_route_2g, *salesman_route_restartg, *flag_g, *city_swap_one_g, *city_swap_two_g;
-	unsigned int global_flag_h = 0, *global_flag_g_1, *global_flag_g_2, *global_flag_g_3;
-	unsigned int *global_flag_g_4, *global_flag_g_5;
+	int global_flag_h = 0, *global_flag_g_1, *global_flag_g_2, *global_flag_g_3;
+	int *global_flag_g_4, *global_flag_g_5;
 
     
 	cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
@@ -202,17 +210,17 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
     cudaMalloc((void**)&sample_area_local_g,  sizeof(float));
 	cudaCheckError();
-	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(unsigned int));
+	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_1, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g_1, sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_2, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g_2, sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_3, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g_3, sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_4, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g_4, sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_5, sizeof(unsigned int));
+	cudaMalloc((void**)&global_flag_g_5, sizeof(int));
 	cudaCheckError();
 	cudaMalloc((void**)&N_g, sizeof(unsigned int));
 	cudaCheckError();
@@ -226,15 +234,15 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaMemcpy(salesman_route_restartg, salesman_route, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
-	cudaMemcpy(global_flag_g_1, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g_1, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	cudaMemcpy(global_flag_g_2, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g_2, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	cudaMemcpy(global_flag_g_3, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g_3, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	cudaMemcpy(global_flag_g_4, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g_4, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
-	cudaMemcpy(global_flag_g_5, &global_flag_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g_5, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();

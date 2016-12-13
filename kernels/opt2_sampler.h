@@ -25,14 +25,14 @@ __global__ static void twoOptStep(unsigned int* city_one,
 	coordinates* __restrict__ location,
 	unsigned int* __restrict__ salesman_route,
 	float* __restrict__ T,
-	volatile unsigned int *global_flag,
+	volatile int *global_flag,
 	unsigned int* __restrict__ N,
 	curandState_t* states,
 	float* sample_area){
 
 	const unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid == 0)
-		global_flag[0] = 0;
+		global_flag[0] = -1;
 	int iter = 0;
 	// This is the maximum we can sample from
 	// This gives us a nice curve
@@ -48,9 +48,18 @@ __global__ static void twoOptStep(unsigned int* city_one,
 		myrandf += 1.0;
 		int city_one_swap = (int)truncf(myrandf);
 
+        // Trying out normally distributed swap step
+        int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
+    
+        // One is added here so that if we have city two == N, then it bumps it up to 1
+        if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
+        if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
+    
+        // Check it ||city_two - city one|| < 9, if so bump it up one
+        if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
+            city_two_swap = city_one_swap + 3;
 
-
-
+/*
 		// We need to set the min and max of the second city swap
 		int min_city_two = city_one_swap+2;
 
@@ -61,14 +70,7 @@ __global__ static void twoOptStep(unsigned int* city_one,
 		myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
 		myrandf += min_city_two;
 		int city_two_swap = (int)truncf(myrandf);
-
-		// This shouldn't have to be here, but if either is larger or equal to N
-		// We set it to N[0] - 1
-		//I think since the space is well setted, this is innecessary
-	//	if (city_one_swap >= N[0])
-	//		city_one_swap = (N[0] - 1);
-//		if (city_two_swap >= N[0])
-	//		city_two_swap = (N[0] - 1);
+*/
 
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
@@ -110,12 +112,12 @@ __global__ static void twoOptStep(unsigned int* city_one,
 
 		//picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
 		//because if I pick the small one, I have to tell whether the flag is 0
-		if (proposal_dist < original_dist&&global_flag[0]<tid){
+		if (proposal_dist < original_dist&&global_flag[0] == -1){
 			global_flag[0] = tid;
 			__threadfence();
 		}
 		iter++;
-		if (global_flag[0] != 0)
+		if (global_flag[0] != -1)
 			iter += 100;
 	}
 	//seed[tid] = r_r;   //refresh the seed at the end of kernel
@@ -125,7 +127,7 @@ __global__ static void opt2Update(unsigned int* __restrict__ city_one,
 	unsigned int* __restrict__ city_two,
 	unsigned int* salesman_route,
 	unsigned int* salesman_route2,
-	volatile unsigned int *global_flag){
+	volatile int *global_flag){
 
 	// each thread is a position in the salesman's trip
 	const int xid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -134,7 +136,7 @@ __global__ static void opt2Update(unsigned int* __restrict__ city_one,
 	2. Shift everything between city one and city two up or down, depending on city one < city two
 	3. Set city two's old position to city one
 	*/
-	if (global_flag[0] != 0){
+	if (global_flag[0] != -1){
 		unsigned int city_one_swap = city_one[global_flag[0]];
 		unsigned int city_two_swap = city_two[global_flag[0]];
 
