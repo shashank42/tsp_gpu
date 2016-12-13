@@ -9,6 +9,11 @@
 * Function to check for cuda error
 *  Run this on the host after performing a cuda operation.
 *****************************************************/
+// if NDEBUG is defined before this is called, it simply returns a blank
+
+#ifdef NDEBUG
+#define cudaCheckError()
+#else
 #define cudaCheckError() {                                          \
  cudaError_t e=cudaGetLastError();                                 \
  if(e!=cudaSuccess) {                                              \
@@ -16,7 +21,7 @@
    exit(0); \
  }                                                                 \
 }
-
+#endif
 /*****************************
 * Desc: structs for coordinates and tsp meta data
 * 

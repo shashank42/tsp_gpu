@@ -9,6 +9,9 @@
 #include<iostream>
 #include<fstream>
 #include<ctype.h>
+
+// If NDEBUG is defined, cudaCheckError() will be empty 
+#define NDEBUG
 #include "kernels/utils.h"
 #include "kernels/initialize_rng.h"
 #include "kernels/swap_sampler.h"
