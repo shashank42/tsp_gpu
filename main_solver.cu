@@ -11,7 +11,7 @@
 #include<ctype.h>
 
 // If NDEBUG is defined, cudaCheckError() will be empty 
-#define NDEBUG
+//#define NDEBUG
 #include "kernels/utils.h"
 #include "kernels/initialize_rng.h"
 #include "kernels/swap_sampler.h"
@@ -281,10 +281,7 @@ int main(int argc, char *argv[]){
 		 
 		while (i<2000){                                                                                         // key
 
-			cudaError_t e = cudaGetLastError();
-			if (e != cudaSuccess) {
-				printf(" Temperature was %.6f on failure\n", T[0]);
-			} 
+	
 			swapStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_1, N_g,

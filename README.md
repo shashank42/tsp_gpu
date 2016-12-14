@@ -12,26 +12,31 @@ The code has so far only been tested on trip sizes no larger than 100,000. But b
 Cloning this repo and typing `make` will create the tsp_cuda program which can be accessed through something like
 
 ```
-./tsp_cuda ./data/mona-lisa100K  -temp= 10000 -decay= .999
+./columbus data/earring200K993 -maxiter= 100 -global_search= .01 -local_search= .1
 ```
 
+The following are the flags and inputs you can use to run the program
 
+```
 Inputs: 
-
-```
-(Required)
-input_file.tsp: [char()] 
- - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over.
- (Optional Flags)
--trip: [char()] 
-  The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. 
--temp: [float(1)] 
-  The initial starting temperature. Default is 10000 
--decay: [float(1)]  
-  The decay rate for the annealing schedule. Default is .99 
+(Required) input_file.tsp: [char()] 
+ - The name of the tsp file, excluding .tsp at the end, containing the cities to travel over. 
+(Optional) -trip: [char()] 
+ - The name of the csv file, excluding .csv, containing a previously found trip. If missing, a linear route is generated as the starting trip. 
+(Optional) -temp: [float(1)] 
+ - The initial starting temperature. Default is 1000 
+(Optional) -decay: [float(1)]  
+ - The decay rate for the annealing schedule. Default is .99 
 (Optional) -maxiter: [integer(1)]  
-- The maximum number of iterations until failure. 
-Default is -1, which runs until temperature goes to the minimum.
+ - The maximum number of iterations until failure. 
+  Default is -1, which runs until temperature goes to the minimum.
+(Optional) -global_search: [float(1)]  
+ - A parameter that controls the variance of the second city search space,
+   such that the variance is [30 + exp(global_search/Temp) * N]. default is .01.
+  See An example of what this controls here:
+(Optional) -local_search: [float(1)]  
+ - A parameter that controls the variance of the second city search space,
+   such that the variance is [30 + exp(local_search/Temp) * N]. default is 1.
 ```
 
 The program will output a csv of the best trip found throughout the simulated annealing process.
@@ -40,6 +45,6 @@ Several tsp datasets are given, but you can download more of them at the [TSPLIB
 
 This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 1 hour yielded a trip length of 7,509,532 and made a very nice picture which you can also generate with the given jupyter notebook.
 
-![](mona_trip.png)
+![](data/mona_trip.png)
 
 
