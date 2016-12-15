@@ -272,7 +272,7 @@ int main(int argc, char *argv[]){
 	time_t t_start, t_end;
 	t_start = time(NULL); 
     long int iter = 1;
-    int sames = 0;
+    //int sames = 0;
 	while (T[0] > 0.01 / log(20 * N))
 	{
 		// Copy memory from host to device
@@ -377,7 +377,7 @@ int main(int argc, char *argv[]){
 		    optimized_loss_restart = optimized_loss;
 		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
 			cudaCheckError();
-			sames = 0;
+			//sames = 0;
 	    } /*else if (abs(optimized_loss - optimized_loss_restart) < 2){
 	    // If we are only gaining by one then we can start speeding things up
 	        sames++;
