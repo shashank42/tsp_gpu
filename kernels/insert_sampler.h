@@ -44,6 +44,9 @@ __global__ static void insertionStep(unsigned int* city_one,
 	myrandf += 4.0;
 	int city_one_swap = (int)truncf(myrandf);
 	
+	if (city_one_swap > N[0] - 2) city_one_swap = N[0] - 2;
+    if (city_one_swap < 4) city_one_swap = 4;
+        
 	// Trying out normally distributed swap step
     int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
     
@@ -53,6 +56,9 @@ __global__ static void insertionStep(unsigned int* city_one,
     // So 0 + N[0] -> N[0] - 1, normally, but doing -2 gives N[0] - 2
     if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
     
+    if (city_two_swap > N[0] - 2) city_two_swap = N[0] - 2;
+    if (city_two_swap < 1) city_two_swap = 1;
+        
     // Check it ||city_two - city one|| < 9, if so bump it up one
     if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
         city_two_swap = city_one_swap - 3;

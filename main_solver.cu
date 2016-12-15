@@ -11,7 +11,7 @@
 #include<ctype.h>
 
 // If NDEBUG is defined, cudaCheckError() will be empty 
-//#define NDEBUG
+#define NDEBUG
 #include "kernels/utils.h"
 #include "kernels/initialize_rng.h"
 #include "kernels/swap_sampler.h"
@@ -280,77 +280,81 @@ int main(int argc, char *argv[]){
 		i = 1;              
 		 
 		while (i<2000){                                                                                         // key
-
-	
-			swapStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+                        
+	        // swap step
+			swapStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_1, N_g,
 				states, sample_area_global_g); 
 			cudaCheckError();
 			
-			swapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g_1);
 			cudaCheckError();
 			
-			swapStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_2, N_g,
 				states,sample_area_local_g);
 			cudaCheckError();
 			
-			swapUpdate << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			swapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, global_flag_g_2); 
 			cudaCheckError(); 
-		
-			twoOptStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			// two opt
+			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			
+			
+			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g, 
 				T_g, global_flag_g_3, N_g,
 				states, sample_area_global_g);
 			cudaCheckError(); 
 			
-			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
 			
-			opt2Update << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_3);
 			cudaCheckError();
 			
-			twoOptStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			
+			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_3, N_g,
 				states, sample_area_local_g);
 			cudaCheckError();
 			
-			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-			opt2Update << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_3);
 			cudaCheckError();
-
-			insertionStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+   
+            // insertionstep
+			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			
+			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_4, N_g,
 				states, sample_area_global_g);
 			cudaCheckError();
 			
-			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-			insertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+			insertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_4);
 			cudaCheckError(); 
 			
-			insertionStep << <blocksPerSampleGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+			cudaCheckError();
+			
+			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
 				T_g, global_flag_g_5, N_g,
 				states, sample_area_local_g);
 			cudaCheckError();
 			
-			insertionUpdateTrip << <blocksPerTripGrid, threadsPerBlock, 0 >> >(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-		    insertionUpdate2 << <blocksPerTripGrid, threadsPerBlock, 0 >> >(city_swap_one_g, city_swap_two_g,
+
+		    insertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				salesman_route_g, salesman_route_2g, global_flag_g_5);
 			cudaCheckError();
 
@@ -374,13 +378,13 @@ int main(int argc, char *argv[]){
 		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
 			cudaCheckError();
 			sames = 0;
-	    } else if (abs(optimized_loss - optimized_loss_restart) < 2){
+	    } /*else if (abs(optimized_loss - optimized_loss_restart) < 2){
 	    // If we are only gaining by one then we can start speeding things up
 	        sames++;
 	        if (sames > 10){
 	            T[0] = T[0] * 0.8;
 	            }
-	    }
+	    }*/
 	    if (maxiter > 0 && maxiter < iter)
             break;
 
