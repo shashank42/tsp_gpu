@@ -1,13 +1,13 @@
-# tsp_gpu
+# columbus: Software for Computing Approximate Solutions to the Traveling Salesman's Problem
 
-This repository contains cuda code for solving the traveling salesman problem using a GPU. 
+This repository contains cuda code for solving the traveling salesman problem using a GPU. See the paper in the docs folder for a detailed explanation.
 
 
-The purpose of this project is to use clever computational techniques to implement Metropolis Hastings algorithms on a GPU. To example the problem, we solve the traveling salesman problem using simulated annealing. The heart of implementing Metropolis Hastings on a GPU is to use the GPU to make multiple samples at each step, while checking and updating the objective and loss function in a purely parallel manner. Instead of basing updates on the best sample of a particular set of draws we simply take the last sample that was a success. This allows the update step to be made purely in parallel, with the only wait time being the write of the first success in a block.
+The purpose of this project is to use clever computational techniques to implement Metropolis Hastings algorithms on a GPU. To example the problem, we solve the traveling salesman problem using simulated annealing. The heart of implementing Metropolis Hastings on a GPU is to use the GPU to make hundreds of thousands of samples at each step, while checking and updating the objective and loss function in a purely parallel manner. Instead of basing updates on the best sample of a particular set of draws we simply take the last sample that was a success. This allows the update step to be made purely in parallel, with the only wait time being the write of the first success in a block.
 
 The most useful part of a GPU implementation of Metropolis Hastings is the ability to dramatically increase the number of proposal steps made during each iteration. On a GTX 780 GPU there are 8 SM's that can handle 16 blocks of size 1024 at a time. This means we can draw and evaluate 131,072 proposal steps at each initialization of the kernel. Leveraging high throughput allows the algorithm to explore a much larger space than it would be able to search on a serial CPU. 
 
-The code has so far only been tested on trip sizes no larger than 100,000. But because of an efficient schema to calculate the distances necessary in a proposal step (paper to be included explaining this later) the algorithm should be capable of handle trip sizes in the millions.
+The code has so far only been tested on trip sizes no larger than 744,710 cities. But because of an efficient schema to calculate the distances necessary in the proposal step the algorithm should be capable of handle trip sizes in the millions.
 
 Cloning this repo and typing `make` will create the tsp_cuda program which can be accessed through something like
 
@@ -43,8 +43,8 @@ The program will output a csv of the best trip found throughout the simulated an
 
 Several tsp datasets are given, but you can download more of them at the [TSPLIB](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) library and the University of Waterloo's [TSP Data](http://www.math.uwaterloo.ca/tsp/data/) webpage.
 
-This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 1 hour yielded a trip length of 7,509,532 and made a very nice picture which you can also generate with the given jupyter notebook.
+This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 1.7 hours yielded a trip length of 5,971,924 and made a very nice picture which you can also generate with the given jupyter notebook.
 
-![](data/mona_trip.png)
+![](data/mona_lines.png)
 
 
