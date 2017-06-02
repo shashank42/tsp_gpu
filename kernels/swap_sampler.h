@@ -48,60 +48,42 @@ __global__ static void swapStep(unsigned int* city_one,
                            unsigned int* __restrict__ N,
                            curandState_t* states,
                            float * sample_area){
-
+   
     const unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int iter = 0;
-	if (tid == 0)
-		global_flag[0] = -1;
+	//if (tid == 0)
+	//	global_flag[0] = -1;
     // Run until either global flag is zero and we do 100 iterations is false.
     // This is the maximum we can sample from
     // This gives us a nice curve
     //http://www.wolframalpha.com/input/?i=e%5E(-+.2%2Ft)+from+0+to+1
-    int sample_space = (int)floor(30+exp(- sample_area[0] / T[0]) * (float)N[0]);
-    while (iter < 5){
+    int sample_space = (int)floor(5 + exp(- sample_area[0] / T[0]) * (float)N[0]);
     // Generate the first city
     // From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
     float myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)(N[0] - 4) - 4.0+0.9999999999999999);
-    myrandf += 4.0;
+    myrandf *= ((float)(N[0] - 4) - 1.0+0.9999999999999999);
+    myrandf += 1.0;
     int city_one_swap = (int)truncf(myrandf);
 
-    if (city_one_swap > N[0] - 4) city_one_swap = N[0] - 4;
-    if (city_one_swap < 4) city_one_swap = 4;
+    city_one_swap = (city_one_swap > N[0] - 2) * (N[0] - 2) + !(city_one_swap > N[0] - 2) * city_one_swap;
+    city_one_swap = (city_one_swap < 1) * 1 + !(city_one_swap < 1) * city_one_swap;
     
     // Trying out normally distributed swap step
     int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
     
     // One is added here so that if we have city two == N, then it bumps it up to 1
-    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
-    if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 1;
-    if (city_two_swap > N[0] - 1) city_two_swap = N[0] - 1;
-    if (city_two_swap < 1) city_two_swap = 1;
-    // Check it ||city_two - city one|| < 9, if so bump it up one
-    if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
-        city_two_swap = city_one_swap + 3;
-/*
-    // We need to set the min and max of the second city swap
-	int min_city_two = city_one_swap + 3;
-    int max_city_two = (city_one_swap +3+ sample_space < N[0])?
-        city_one_swap +3+ sample_space:
-            (N[0] - 1);
-    myrandf = curand_uniform(&states[tid]);
-    myrandf *= ((float)max_city_two - (float)min_city_two + 0.999999999999999);
-    myrandf += min_city_two;
-    int city_two_swap = (int)truncf(myrandf);
+    city_two_swap -= (city_two_swap >= N[0]) * ((city_two_swap/N[0]) * N[0] + 1);
+    city_two_swap += (city_two_swap <= 0) * ((-city_two_swap/N[0] + 1) * N[0] - 1);
 
-    // This shouldn't have to be here, but if either is larger or equal to N
-    // We set it to N[0] - 1
-    if (city_one_swap >= N[0])
-        city_one_swap = (N[0] - 1);
-    if (city_two_swap >= N[0])
-        city_two_swap = (N[0] - 1);
-*/
+    // Check it ||city_two - city one|| < 9, if so bump it up one
+ 
+    city_two_swap = (city_two_swap > N[0] - 1) * (N[0] - 1) + !(city_two_swap > N[0] - 1) * city_two_swap;
+    city_two_swap = (city_two_swap < 2) * 2 + !(city_two_swap < 2) * city_two_swap;
+    
+    city_two_swap = ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4) * (city_one_swap + 2) + !((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4) * city_two_swap;
+    
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
 
-    float quotient, p;
     // Set the swap cities in the trip.
     unsigned int trip_city_one = salesman_route[city_one_swap];
     unsigned int trip_city_one_pre  = salesman_route[city_one_swap - 1];
@@ -156,25 +138,21 @@ __global__ static void swapStep(unsigned int* city_one,
 
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
-    //because if I pick the small one, I have to tell whether the flag is 0
+    //because if I pick the small one, I have to tell whether the flag is -1
 	  if (proposal_dist < original_dist && global_flag[0] == -1){
 		  global_flag[0] = tid;
 		  __threadfence();
 	  }
 	  else if (global_flag[0] == -1)
 	{
-        quotient = proposal_dist/original_dist-1;
-        p = exp(-quotient * 6000 / T[0]);
+	    double quotient, p;
+        quotient = proposal_dist - original_dist;
+        p = exp(-(quotient) / T[0]);
         myrandf = curand_uniform(&states[tid]);
-        if (p > myrandf && global_flag[0] == -1){
+        if (p/131072.0 > myrandf && global_flag[0] == -1){
             global_flag[0] = tid;
-            __syncthreads();
         }
      }
-    iter++;
-	if (global_flag[0] != -1)
-		iter += 100;
-    }
     //seed[tid] = r_r;   //refresh the seed at the end of kernel
 }
 
@@ -182,20 +160,18 @@ __global__ static void swapStep(unsigned int* city_one,
 __global__ static void swapUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* __restrict__ salesman_route,
+                           unsigned int* __restrict__ salesman_route2,
                            volatile int *global_flag){
 
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int tmp;
     // use thread 0 to refresh the route
     if (tid == 0){
         if (global_flag[0] != -1){
-            tmp = salesman_route[city_one[global_flag[0]]];
-            salesman_route[city_one[global_flag[0]]] = salesman_route[city_two[global_flag[0]]];
-            salesman_route[city_two[global_flag[0]]] = tmp;
-            global_flag[0] = -1;
+            salesman_route[city_one[global_flag[0]]] = salesman_route2[city_two[global_flag[0]]];
+            salesman_route[city_two[global_flag[0]]] = salesman_route2[city_one[global_flag[0]]];
         }
     }
-    __syncthreads();
+    
 }
 
 

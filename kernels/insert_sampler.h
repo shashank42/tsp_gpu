@@ -50,36 +50,35 @@ __global__ static void insertionStep(unsigned int* city_one,
 	float* sample_area){
 	//first, refresh the route, this time we have to change city_one-city_two elements
 	const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	if (tid == 0)
-		global_flag[0] = -1;
+	//if (tid == 0)
+	//	global_flag[0] = -1;
 
     // This is the maximum we can sample from
-	int sample_space = (int)floor(30 + exp(- sample_area[0] / T[0]) * N[0]);
+	int sample_space = (int)floor(5 + exp(- sample_area[0] / T[0]) * N[0]);
 	// Generate the first city
 	// From: http://stackoverflow.com/questions/18501081/generating-random-number-within-cuda-kernel-in-a-varying-range
 	float myrandf = curand_uniform(&states[tid]);
 	myrandf *= ((float)(N[0] - 2) - 4.0 + 0.9999999999999999);
 	myrandf += 4.0;
 	int city_one_swap = (int)truncf(myrandf);
-	
-	if (city_one_swap > N[0] - 2) city_one_swap = N[0] - 2;
-    if (city_one_swap < 4) city_one_swap = 4;
-        
+    
+    city_one_swap = (city_one_swap > N[0] - 2) * (N[0] - 2) + !(city_one_swap > N[0] - 2) * city_one_swap;
+    city_one_swap = (city_one_swap < 4) * 4 + !(city_one_swap < 4) * city_one_swap;    
 	// Trying out normally distributed swap step
     int city_two_swap = (int)(city_one_swap + (curand_normal(&states[tid]) * sample_space));
     
     // One is added here so that if we have city two == N, then it bumps it up to 1
-    if (city_two_swap >= N[0]) city_two_swap -= (city_two_swap/N[0]) * N[0] + 1;
+    city_two_swap -= (city_two_swap >= N[0]) * ((city_two_swap/N[0]) * N[0] + 1);
     // this is N[0] - 2 because we cannot have a value of N[0] - 1,
     // So 0 + N[0] -> N[0] - 1, normally, but doing -2 gives N[0] - 2
-    if (city_two_swap <= 0) city_two_swap += (-city_two_swap/N[0] + 1) * N[0] - 2;
+    city_two_swap += (city_two_swap <= 0) * ((-city_two_swap/N[0] + 1) * N[0] - 2);
     
-    if (city_two_swap > N[0] - 2) city_two_swap = N[0] - 2;
-    if (city_two_swap < 1) city_two_swap = 1;
-        
+       
     // Check it ||city_two - city one|| < 9, if so bump it up one
-    if ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9)
-        city_two_swap = city_one_swap - 3;
+    //city_two_swap = ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9) * (city_one_swap - 3) + !((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 9) * city_two_swap;
+    
+    city_two_swap = (city_two_swap > N[0] - 2) * (N[0] - 2) + !(city_two_swap > N[0] - 2) * city_two_swap;
+    city_two_swap = (city_two_swap < 1) * 1 + !(city_two_swap < 1) * city_two_swap;
 
 /*
 	// We need to set the min and max of the second city swap
@@ -100,7 +99,6 @@ __global__ static void insertionStep(unsigned int* city_one,
 		city_one[tid] = city_one_swap;
 		city_two[tid] = city_two_swap;
 
-		float quotient, p;
 		unsigned int trip_city_one = salesman_route[city_one_swap];
 		unsigned int trip_city_one_pre = salesman_route[city_one_swap - 1];
 		unsigned int trip_city_one_post = salesman_route[city_one_swap + 1];
@@ -152,17 +150,16 @@ __global__ static void insertionStep(unsigned int* city_one,
 		if (proposal_dist < original_dist&&global_flag[0] == -1)
 		{
 			global_flag[0] = tid;
-			__threadfence();
 		}
 		else if (global_flag[0] == -1)
 		{
-		    quotient = proposal_dist/original_dist-1;
-		    p = exp(-quotient*6000 / T[0]);
+		    double quotient, p;
+		    quotient = proposal_dist - original_dist;
+		    p = exp(-(quotient) / T[0]);
 		    myrandf = curand_uniform(&states[tid]);
-		    if (p > myrandf && global_flag[0] == -1)
+		    if (p/131072 > myrandf && global_flag[0] == -1)
 		    {
 		        global_flag[0] = tid;
-		        __syncthreads();
 		    }
 		}
 	}
@@ -176,7 +173,7 @@ __global__ static void insertionUpdateTrip(unsigned int* salesman_route, unsigne
         salesman_route2[xid] = salesman_route[xid];
 }
 
-__global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
+__global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
                            unsigned int* salesman_route2,
@@ -197,18 +194,42 @@ __global__ static void insertionUpdate2(unsigned int* __restrict__ city_one,
             if (xid >= city_one_swap && xid < city_two_swap){
                 salesman_route[xid] = salesman_route2[xid + 1];
             }
-			if (xid == 0)
-				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
         } else {
             if (xid > city_two_swap+1 && xid <= city_one_swap){
                 salesman_route[xid] = salesman_route2[xid - 1];
             }
-			if (xid == 0)
+        }
+    }
+}
+
+__global__ static void insertionUpdateEndPoints(unsigned int* __restrict__ city_one,
+                           unsigned int* __restrict__ city_two,
+                           unsigned int* salesman_route,
+                           unsigned int* salesman_route2,
+                           volatile int* global_flag){
+    // each thread is a position in the salesman's trip
+    const int xid = blockIdx.x * blockDim.x + threadIdx.x;
+    /*
+      1. Save city one
+      2. Shift everything between city one and city two up or down, depending on city one < city two
+      3. Set city two's old position to city one
+    */
+    if (global_flag[0] != -1){
+        unsigned int city_one_swap = city_one[global_flag[0]];
+        unsigned int city_two_swap = city_two[global_flag[0]];
+
+        if (city_one_swap < city_two_swap){
+            if (xid == 0)
+				salesman_route[city_two_swap] = salesman_route2[city_one_swap];
+        } else {
+            if (xid == 0)
 				salesman_route[city_two_swap + 1] = salesman_route2[city_one_swap];
         }
     }
 }
 
+
+/*
 __global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
                            unsigned int* __restrict__ city_two,
                            unsigned int* salesman_route,
@@ -260,7 +281,7 @@ __global__ static void insertionUpdate(unsigned int* __restrict__ city_one,
 }
 
 
-
+*/
 
 #endif // _TSP_INSERT_H_
 

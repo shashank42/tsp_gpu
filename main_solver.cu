@@ -27,7 +27,7 @@
 #include<iostream>
 #include<fstream>
 #include<ctype.h>
-
+#include <float.h>
 // If NDEBUG is defined, cudaCheckError() will be empty 
 #define NDEBUG
 #include "kernels/utils.h"
@@ -206,8 +206,7 @@ int main(int argc, char *argv[]){
 	unsigned int *city_swap_two_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *flag_h = (unsigned int *)malloc(GRID_SIZE * sizeof(unsigned int));
 	unsigned int *salesman_route_g, *salesman_route_2g, *salesman_route_restartg, *flag_g, *city_swap_one_g, *city_swap_two_g;
-	int global_flag_h = 0, *global_flag_g_1, *global_flag_g_2, *global_flag_g_3;
-	int *global_flag_g_4, *global_flag_g_5;
+	int global_flag_h = -1, *global_flag_g;
 
     
 	cudaMalloc((void**)&city_swap_one_g, GRID_SIZE * sizeof(unsigned int));
@@ -230,15 +229,7 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaMalloc((void**)&flag_g, GRID_SIZE * sizeof(int));
 	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_1, sizeof(int));
-	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_2, sizeof(int));
-	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_3, sizeof(int));
-	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_4, sizeof(int));
-	cudaCheckError();
-	cudaMalloc((void**)&global_flag_g_5, sizeof(int));
+	cudaMalloc((void**)&global_flag_g, sizeof(int));
 	cudaCheckError();
 	cudaMalloc((void**)&N_g, sizeof(unsigned int));
 	cudaCheckError();
@@ -252,15 +243,7 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaMemcpy(salesman_route_restartg, salesman_route, (N + 1) * sizeof(unsigned int), cudaMemcpyHostToDevice);
     cudaCheckError();
-	cudaMemcpy(global_flag_g_1, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
-	cudaCheckError();
-	cudaMemcpy(global_flag_g_2, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
-	cudaCheckError();
-	cudaMemcpy(global_flag_g_3, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
-	cudaCheckError();
-	cudaMemcpy(global_flag_g_4, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
-	cudaCheckError();
-	cudaMemcpy(global_flag_g_5, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
 	cudaCheckError();
 	cudaMemcpy(N_g, &N, sizeof(unsigned int), cudaMemcpyHostToDevice);
 	cudaCheckError();
@@ -290,92 +273,134 @@ int main(int argc, char *argv[]){
 	time_t t_start, t_end;
 	t_start = time(NULL); 
     long int iter = 1;
+    printf("Ending Temp: %f \n", FLT_EPSILON * 100);
     //int sames = 0;
-	while (T[0] > 0.01 / log(20 * N))
+    printf(" Loss | Temp | Iter | Time \n");
+	while (T[0] > FLT_EPSILON * 100 | T[0] == 0.0)
 	{
 		// Copy memory from host to device
 		cudaMemcpy(T_g, T, sizeof(float), cudaMemcpyHostToDevice);
 		i = 1;              
 		 
-		while (i<2000){                                                                                         // key
+		while (i < 2000){                                                                                         // key
                         
-	        // swap step
+			// two opt
+			cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+			
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError();
+
+			
+			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g, 
+				T_g, global_flag_g, N_g,
+				states, sample_area_global_g);
+			cudaCheckError(); 
+			
+			
+			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			
+			cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+			
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError();
+			
+			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states, sample_area_local_g);
+			cudaCheckError();
+			
+			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+   
+            // insertionstep
+            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+			
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError();
+           	
+			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states, sample_area_global_g);
+			cudaCheckError();
+			
+			insertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError(); 
+			
+			insertionUpdateEndPoints <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError(); 
+			
+		    cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+			
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError();
+			
+			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				location_g, salesman_route_g,
+				T_g, global_flag_g, N_g,
+				states, sample_area_local_g);
+			cudaCheckError();
+			
+
+		    insertionUpdate <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			
+			
+			insertionUpdateEndPoints <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
+				salesman_route_g, salesman_route_2g, global_flag_g);
+			cudaCheckError();
+			
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError(); 
+            // swap step
+            
+            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+						
 			swapStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
-				T_g, global_flag_g_1, N_g,
+				T_g, global_flag_g, N_g,
 				states, sample_area_global_g); 
 			cudaCheckError();
 			
 			swapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, global_flag_g_1);
+				salesman_route_g, salesman_route_2g, global_flag_g);
 			cudaCheckError();
 			
+            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaCheckError();
+						
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError();
+            
 			swapStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
 				location_g, salesman_route_g,
-				T_g, global_flag_g_2, N_g,
+				T_g, global_flag_g, N_g,
 				states,sample_area_local_g);
 			cudaCheckError();
 			
 			swapUpdate <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, global_flag_g_2); 
-			cudaCheckError(); 
-			// two opt
-			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
+				salesman_route_g, salesman_route_2g, global_flag_g); 
 			cudaCheckError();
 			
-			
-			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g, 
-				T_g, global_flag_g_3, N_g,
-				states, sample_area_global_g);
-			cudaCheckError(); 
-			
-			
-			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g_3);
+			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
+            cudaCheckError(); 
+            
+            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
-			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-			twoOptStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g,
-				T_g, global_flag_g_3, N_g,
-				states, sample_area_local_g);
-			cudaCheckError();
-			
-			opt2Update <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g_3);
-			cudaCheckError();
-   
-            // insertionstep
-			insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g,
-				T_g, global_flag_g_4, N_g,
-				states, sample_area_global_g);
-			cudaCheckError();
-			
-			insertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g_4);
-			cudaCheckError(); 
-			
-		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_2g, N_g);
-			cudaCheckError();
-			
-			insertionStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				location_g, salesman_route_g,
-				T_g, global_flag_g_5, N_g,
-				states, sample_area_local_g);
-			cudaCheckError();
-			
-
-		    insertionUpdate2 <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
-				salesman_route_g, salesman_route_2g, global_flag_g_5);
-			cudaCheckError();
-
 			i++;
 		}
 		cudaMemcpy(salesman_route, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -387,7 +412,7 @@ int main(int argc, char *argv[]){
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y) *
 				(location[salesman_route[i]].y - location[salesman_route[i + 1]].y));
 		}
-		printf("| Loss: %.6f | Temp: %f | Iter: %ld |\n", optimized_loss, T[0], iter);
+		printf(" %.6f | %f | %ld | %f\n", optimized_loss, T[0], iter, difftime(time(NULL), t_start));
 		T[0] = T[0] * decay;
 				iter++;
 		// This grabs the best trip overall
@@ -463,6 +488,8 @@ int main(int argc, char *argv[]){
 	cudaCheckError();
 	cudaFree(flag_g);
 	cudaCheckError();
+	cudaFree(global_flag_g);
+	cudaCheckError();
 	cudaFree(salesman_route_restartg);
 	cudaCheckError();
 	cudaFree(sample_area_global_g);
@@ -474,6 +501,5 @@ int main(int argc, char *argv[]){
 	free(city_swap_two_h);
 	free(flag_h);
 	free(location);
-	getchar();
 	return 0;
 }
