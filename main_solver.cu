@@ -285,7 +285,7 @@ int main(int argc, char *argv[]){
 		while (i < 2000){                                                                                         // key
                         
 			// two opt
-			cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
@@ -303,7 +303,7 @@ int main(int argc, char *argv[]){
 				salesman_route_g, salesman_route_2g, global_flag_g);
 			cudaCheckError();
 			
-			cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
@@ -320,7 +320,7 @@ int main(int argc, char *argv[]){
 			cudaCheckError();
    
             // insertionstep
-            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
@@ -340,7 +340,7 @@ int main(int argc, char *argv[]){
 				salesman_route_g, salesman_route_2g, global_flag_g);
 			cudaCheckError(); 
 			
-		    cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+		    cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
@@ -366,7 +366,7 @@ int main(int argc, char *argv[]){
             cudaCheckError(); 
             // swap step
             
-            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 						
 			swapStep <<<blocksPerSampleGrid, threadsPerBlock, 0 >>>(city_swap_one_g, city_swap_two_g,
@@ -379,7 +379,7 @@ int main(int argc, char *argv[]){
 				salesman_route_g, salesman_route_2g, global_flag_g);
 			cudaCheckError();
 			
-            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 						
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
@@ -398,7 +398,7 @@ int main(int argc, char *argv[]){
 			cudaMemcpy(global_flag_g, &global_flag_h, sizeof(int), cudaMemcpyHostToDevice);
             cudaCheckError(); 
             
-            cudaMemcpy(salesman_route_2g, salesman_route_g, sizeof(int), cudaMemcpyDeviceToDevice);
+            cudaMemcpy(salesman_route_2g, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			
 			i++;
@@ -418,7 +418,7 @@ int main(int argc, char *argv[]){
 		// This grabs the best trip overall
 		if (optimized_loss < optimized_loss_restart){
 		    optimized_loss_restart = optimized_loss;
-		    insertionUpdateTrip <<<blocksPerTripGrid, threadsPerBlock, 0 >>>(salesman_route_g, salesman_route_restartg, N_g);
+		    cudaMemcpy(salesman_route_restartg, salesman_route_g, (N + 1) * sizeof(unsigned int), cudaMemcpyDeviceToDevice);
 			cudaCheckError();
 			//sames = 0;
 	    } /*else if (abs(optimized_loss - optimized_loss_restart) < 2){

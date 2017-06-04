@@ -134,10 +134,13 @@ __global__ static void twoOptStep(unsigned int* city_one,
 
 	//picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
 	//because if I pick the small one, I have to tell whether the flag is 0
-	if (proposal_dist < original_dist && global_flag[0] == -1){
+	if (proposal_dist < original_dist && global_flag[0] == -1)
+	{
 		global_flag[0] = tid;
+		__threadfence();
 	}
-    else if (global_flag[0] == -1)
+	__threadfence();
+    if (global_flag[0] == -1)
 	{
 	    double quotient, p;
         quotient = proposal_dist - original_dist;

@@ -79,7 +79,7 @@ __global__ static void swapStep(unsigned int* city_one,
     city_two_swap = (city_two_swap > N[0] - 1) * (N[0] - 1) + !(city_two_swap > N[0] - 1) * city_two_swap;
     city_two_swap = (city_two_swap < 2) * 2 + !(city_two_swap < 2) * city_two_swap;
     
-    city_two_swap = ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4) * (city_one_swap + 2) + !((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 4) * city_two_swap;
+    city_two_swap = ((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 6) * (city_one_swap + 2) + !((city_one_swap - city_two_swap) * (city_one_swap - city_two_swap) < 6) * city_two_swap;
     
     city_one[tid] = city_one_swap;
     city_two[tid] = city_two_swap;
@@ -139,11 +139,13 @@ __global__ static void swapStep(unsigned int* city_one,
 
     //picking the first accepted and picking the last accepted is equivalent, and here I pick the latter one
     //because if I pick the small one, I have to tell whether the flag is -1
-	  if (proposal_dist < original_dist && global_flag[0] == -1){
+	  if (proposal_dist < original_dist && global_flag[0] == -1)
+	  {
 		  global_flag[0] = tid;
-		  __threadfence();
+		  	__threadfence();
 	  }
-	  else if (global_flag[0] == -1)
+	__threadfence();
+	if (global_flag[0] == -1)
 	{
 	    double quotient, p;
         quotient = proposal_dist - original_dist;
