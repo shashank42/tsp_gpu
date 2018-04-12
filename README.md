@@ -45,6 +45,7 @@ Several tsp datasets are given, but you can download more of them at the [TSPLIB
 
 This project is still very much in beta, but running the algorithm on the classic [mona lisa](http://www.math.uwaterloo.ca/tsp/data/ml/monalisa.html) problem for 1.7 hours yielded a trip length of 5,971,924 and made a very nice picture which you can also generate with the given jupyter notebook.
 
-![](data/mona_lines.png)
+Below is an example of Venus, with a total of 140K cities we achieve a result of 6,986,033 which is only 3% worse than the best found score of 6,810,665. While normal solvers may have taken a month to find this answer our algorithm only took 20 hours.
 
 
+![](https://i.imgur.com/GjaKFAJ.jpg)
