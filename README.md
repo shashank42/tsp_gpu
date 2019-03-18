@@ -1,3 +1,7 @@
+## Notice:
+
+I'm seen a few people forking this. Please keep in mind all code here is licensed under the AGPLV3. I did this because I have absolutely no clue how this code is useful beyond making pretty graphs. If you contact me and tell me how you are using this code I'll be happy to give you a less strictly licensed version.
+
 # columbus: Software for Computing Approximate Solutions to the Traveling Salesman's Problem
 
 This repository contains cuda code for solving the traveling salesman problem using a GPU. See the paper in the docs folder for a detailed explanation.
