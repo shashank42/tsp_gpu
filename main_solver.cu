@@ -30,11 +30,12 @@
 #include <string.h>
 // If NDEBUG is defined, cudaCheckError() will be empty
 #define NDEBUG
+#include "kernels/utils.h"
 #include "kernels/initialize_rng.h"
 #include "kernels/insert_sampler.h"
 #include "kernels/opt2_sampler.h"
 #include "kernels/swap_sampler.h"
-#include "kernels/utils.h"
+
 
 #define t_num 1024
 #define GRID_SIZE 131072
